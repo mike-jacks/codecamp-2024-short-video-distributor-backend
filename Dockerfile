@@ -8,7 +8,7 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o short-video-distributor .
+RUN CGO_ENABLED=0 GOOS=linux go build -o short-video-distributor ./cmd/main.go
 
 FROM alpine:latest
 
