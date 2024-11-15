@@ -19,8 +19,9 @@ func (r *mutationResolver) Empty(ctx context.Context) (*string, error) {
 
 // Authorize is the resolver for the authorize field.
 func (r *mutationResolver) Authorize(ctx context.Context, platformType model.PlatformType, code string) (bool, error) {
-	userID := ctx.Value("user_id").(string)
-	if userID == "" {
+	var userID string
+	getUserID := ctx.Value("user_id")
+	if getUserID == nil {
 		userID = "test-user-id"
 	}
 
@@ -60,12 +61,15 @@ func (r *queryResolver) GetAuthURL(ctx context.Context, platformType model.Platf
 
 // GetPlatformCredentials is the resolver for the getPlatformCredentials field.
 func (r *queryResolver) GetPlatformCredentials(ctx context.Context, platformType model.PlatformType) (*model.PlatformCredentials, error) {
+	// Use a constant userID for now
+	userID := ctx.Value("user_id").(string)
+	if userID == "" {
+		userID = "test-user-id"
+	}
+
 	if r.youtubeService == nil {
 		return nil, fmt.Errorf("youtube service not initialized")
 	}
-
-	// TODO: Get real userID from context after implementing authentication
-	userID := "test-user"
 
 	switch platformType {
 	case model.PlatformTypeYoutube:
