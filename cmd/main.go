@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -39,6 +40,7 @@ func main() {
 
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	http.Handle("/query", srv)
+	handleOAuthCallback()
 
 	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
@@ -64,4 +66,34 @@ func initDatabase() db.Database {
 	}
 
 	return db
+}
+
+func handleOAuthCallback() {
+	// Add OAuth redirect handler with proper response
+	http.HandleFunc("/oauth/callback", func(w http.ResponseWriter, r *http.Request) {
+		code := r.URL.Query().Get("code")
+		if code == "" {
+			http.Error(w, "Code not found", http.StatusBadRequest)
+			return
+		}
+		fmt.Println("Code:", code)
+
+		// Set response headers
+		w.Header().Set("Content-Type", "text/html")
+
+		// Return a simple HTML page
+		html := `
+        <html>
+            <body>
+                <h1>Authorization Successful</h1>
+                <p>You can close this window and return to the application.</p>
+                <script>
+                    // You can add code here to communicate with your frontend
+                    window.close();
+                </script>
+            </body>
+        </html>
+        `
+		w.Write([]byte(html))
+	})
 }

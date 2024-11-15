@@ -60,14 +60,24 @@ func (r *queryResolver) GetAuthURL(ctx context.Context, platformType model.Platf
 
 // GetPlatformCredentials is the resolver for the getPlatformCredentials field.
 func (r *queryResolver) GetPlatformCredentials(ctx context.Context, platformType model.PlatformType) (*model.PlatformCredentials, error) {
-	userID := ctx.Value("user_id").(string)
-	if userID == "" {
-		userID = "test-user-id"
+	if r.youtubeService == nil {
+		return nil, fmt.Errorf("youtube service not initialized")
 	}
+
+	// TODO: Get real userID from context after implementing authentication
+	userID := "test-user"
 
 	switch platformType {
 	case model.PlatformTypeYoutube:
-		return r.youtubeService.GetActiveCredentials(ctx, userID)
+		creds, err := r.youtubeService.GetActiveCredentials(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get YouTube credentials: %w", err)
+		}
+		return creds, nil
+	case model.PlatformTypeTiktok:
+		return nil, fmt.Errorf("TikTok not implemented yet")
+	case model.PlatformTypeInstagram:
+		return nil, fmt.Errorf("instagram not implemented yet")
 	default:
 		return nil, fmt.Errorf("unsupported platform type: %s", platformType)
 	}

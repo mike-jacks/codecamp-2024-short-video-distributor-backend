@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/mike-jacks/codecamp-2024-short-video-distributor-backend/graph/model"
@@ -20,6 +21,17 @@ type YouTubeService struct {
 }
 
 func NewYouTubeService(db *gorm.DB) *YouTubeService {
+	clientID := os.Getenv("YOUTUBE_CLIENT_ID")
+	clientSecret := os.Getenv("YOUTUBE_CLIENT_SECRET")
+	redirectURI := os.Getenv("YOUTUBE_REDIRECT_URI")
+	// Add debug logging
+	log.Printf("YouTube Config - ClientID: %v, RedirectURI: %s",
+		clientID, redirectURI)
+
+	if clientID == "" || clientSecret == "" || redirectURI == "" {
+		log.Fatal("Missing required YouTube OAuth credentials")
+	}
+
 	config := &oauth2.Config{
 		ClientID:     os.Getenv("YOUTUBE_CLIENT_ID"),
 		ClientSecret: os.Getenv("YOUTUBE_CLIENT_SECRET"),
@@ -91,8 +103,16 @@ func (s *YouTubeService) ExchangeAndSaveToken(ctx context.Context, code string, 
 
 func (s *YouTubeService) GetActiveCredentials(ctx context.Context, userID string) (*model.PlatformCredentials, error) {
 	var creds models.PlatformCredentials
-	if err := s.db.Where("user_id = ? AND platform_type = ? AND is_active = ?", userID, models.YouTube, true).First(&creds).Error; err != nil {
-		return nil, fmt.Errorf("failed to get active credentials: %w", err)
+
+	err := s.db.Where("user_id = ? AND platform_type = ? AND is_active = ?",
+		userID, models.YouTube, true).First(&creds).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// Return nil and no error when no credentials are found
+			return nil, nil
+		}
+		return nil, fmt.Errorf("error fetching credentials: %w", err)
 	}
 
 	return &model.PlatformCredentials{

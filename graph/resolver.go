@@ -15,8 +15,17 @@ type Resolver struct {
 }
 
 func NewResolver(db *gorm.DB) *Resolver {
+	if db == nil {
+		panic("db cannot be nil")
+	}
+
+	youtubeService := service.NewYouTubeService(db)
+	if youtubeService == nil {
+		panic("failed to create youtube service")
+	}
+
 	return &Resolver{
 		db:             db,
-		youtubeService: service.NewYouTubeService(db),
+		youtubeService: youtubeService,
 	}
 }
