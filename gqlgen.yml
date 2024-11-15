@@ -95,8 +95,6 @@ models:
       - github.com/99designs/gqlgen/graphql.Int
       - github.com/99designs/gqlgen/graphql.Int64
       - github.com/99designs/gqlgen/graphql.Int32
-
-scalars:
   Upload:
     model:
       - github.com/99designs/gqlgen/graphql.Upload
