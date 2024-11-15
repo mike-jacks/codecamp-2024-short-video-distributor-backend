@@ -1,0 +1,20 @@
+type YouTubeAuth {
+  authUrl: String!
+}
+
+type YouTubeVideo {
+  id: String!
+  title: String!
+  description: String!
+  url: String!
+  status: String!
+}
+
+extend type Query {
+  getYouTubeAuthURL: YouTubeAuth!
+}
+
+extend type Mutation {
+  authorizeYouTube(code: String!): Boolean!
+  uploadYouTubeVideo(file: Upload!, title: String!, description: String!): YouTubeVideo!
+}
