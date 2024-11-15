@@ -52,6 +52,11 @@ func (s *YouTubeService) ExchangeAndSaveToken(ctx context.Context, code string, 
 		return nil, fmt.Errorf("failed to create YouTube service: %w", err)
 	}
 
+	_, err = youtubeService.Channels.List([]string{"snippet"}).Mine(true).Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify token: %w", err)
+	}
+
 	// Deactivate any existing credentials
 	if err := s.db.Model(&models.PlatformCredentials{}).
 		Where("user_id = ? AND platform_type = ? AND is_active = ?", userID, models.YouTube, true).
