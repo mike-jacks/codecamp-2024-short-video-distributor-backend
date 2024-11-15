@@ -7,3 +7,4 @@ type Mutation {
 }
 
 scalar Upload
+scalar DateTime

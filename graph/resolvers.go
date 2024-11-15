@@ -17,14 +17,30 @@ func (r *mutationResolver) Empty(ctx context.Context) (*string, error) {
 	panic(fmt.Errorf("not implemented: Empty - _empty"))
 }
 
-// AuthorizeYouTube is the resolver for the authorizeYouTube field.
-func (r *mutationResolver) AuthorizeYouTube(ctx context.Context, code string) (bool, error) {
-	panic(fmt.Errorf("not implemented: AuthorizeYouTube - authorizeYouTube"))
+// Authorize is the resolver for the authorize field.
+func (r *mutationResolver) Authorize(ctx context.Context, platformType model.PlatformType, code string) (bool, error) {
+	userID := ctx.Value("user_id").(string)
+	if userID == "" {
+		userID = "test-user-id"
+	}
+
+	switch platformType {
+	case model.PlatformTypeYoutube:
+		_, err := r.youtubeService.ExchangeAndSaveToken(ctx, code, userID)
+		return err == nil, nil
+	default:
+		return false, fmt.Errorf("unsupported platform type: %s", platformType)
+	}
 }
 
-// UploadYouTubeVideo is the resolver for the uploadYouTubeVideo field.
-func (r *mutationResolver) UploadYouTubeVideo(ctx context.Context, file graphql.Upload, title string, description string) (*model.YouTubeVideo, error) {
-	panic(fmt.Errorf("not implemented: UploadYouTubeVideo - uploadYouTubeVideo"))
+// RevokeAuth is the resolver for the revokeAuth field.
+func (r *mutationResolver) RevokeAuth(ctx context.Context, platformType model.PlatformType) (bool, error) {
+	panic(fmt.Errorf("not implemented: RevokeAuth - revokeAuth"))
+}
+
+// UploadVideo is the resolver for the uploadVideo field.
+func (r *mutationResolver) UploadVideo(ctx context.Context, platformType model.PlatformType, file graphql.Upload, title string, description string) (*model.Video, error) {
+	panic(fmt.Errorf("not implemented: UploadVideo - uploadVideo"))
 }
 
 // Empty is the resolver for the _empty field.
@@ -32,9 +48,29 @@ func (r *queryResolver) Empty(ctx context.Context) (*string, error) {
 	panic(fmt.Errorf("not implemented: Empty - _empty"))
 }
 
-// GetYouTubeAuthURL is the resolver for the getYouTubeAuthURL field.
-func (r *queryResolver) GetYouTubeAuthURL(ctx context.Context) (*model.YouTubeAuth, error) {
-	panic(fmt.Errorf("not implemented: GetYouTubeAuthURL - getYouTubeAuthURL"))
+// GetAuthURL is the resolver for the getAuthURL field.
+func (r *queryResolver) GetAuthURL(ctx context.Context, platformType model.PlatformType) (string, error) {
+	switch platformType {
+	case model.PlatformTypeYoutube:
+		return r.youtubeService.GetAuthURL(), nil
+	default:
+		return "", fmt.Errorf("unsupported platform type: %s", platformType)
+	}
+}
+
+// GetPlatformCredentials is the resolver for the getPlatformCredentials field.
+func (r *queryResolver) GetPlatformCredentials(ctx context.Context, platformType model.PlatformType) (*model.PlatformCredentials, error) {
+	userID := ctx.Value("user_id").(string)
+	if userID == "" {
+		userID = "test-user-id"
+	}
+
+	switch platformType {
+	case model.PlatformTypeYoutube:
+		return r.youtubeService.GetActiveCredentials(ctx, userID)
+	default:
+		return nil, fmt.Errorf("unsupported platform type: %s", platformType)
+	}
 }
 
 // Mutation returns MutationResolver implementation.

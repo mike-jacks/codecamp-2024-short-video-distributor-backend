@@ -1,0 +1,40 @@
+enum AuthURL {
+  YOUTUBE
+  TIKTOK
+  INSTAGRAM
+}
+
+type Video {
+  id: String!
+  title: String!
+  description: String!
+  url: String!
+  status: String!
+}
+
+enum PlatformType {
+  YOUTUBE
+  TIKTOK
+  INSTAGRAM
+}
+
+type PlatformCredentials {
+  id: String!
+  userId: String!
+  platformType: PlatformType!
+  accessToken: String!
+  refreshToken: String!
+  tokenExpiresAt: DateTime!
+  isActive: Boolean!
+}
+
+extend type Query {
+  getAuthURL(platformType: PlatformType!): String!
+  getPlatformCredentials(platformType: PlatformType!): PlatformCredentials!
+}
+
+extend type Mutation {
+  authorize(platformType: PlatformType!, code: String!): Boolean!
+  revokeAuth(platformType: PlatformType!): Boolean!
+  uploadVideo(platformType: PlatformType!, file: Upload!, title: String!, description: String!): Video!
+}

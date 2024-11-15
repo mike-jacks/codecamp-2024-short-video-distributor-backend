@@ -2,20 +2,119 @@
 
 package model
 
+import (
+	"fmt"
+	"io"
+	"strconv"
+	"time"
+)
+
 type Mutation struct {
+}
+
+type PlatformCredentials struct {
+	ID             string       `json:"id"`
+	UserID         string       `json:"userId"`
+	PlatformType   PlatformType `json:"platformType"`
+	AccessToken    string       `json:"accessToken"`
+	RefreshToken   string       `json:"refreshToken"`
+	TokenExpiresAt time.Time    `json:"tokenExpiresAt"`
+	IsActive       bool         `json:"isActive"`
 }
 
 type Query struct {
 }
 
-type YouTubeAuth struct {
-	AuthURL string `json:"authUrl"`
-}
-
-type YouTubeVideo struct {
+type Video struct {
 	ID          string `json:"id"`
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	URL         string `json:"url"`
 	Status      string `json:"status"`
+}
+
+type AuthURL string
+
+const (
+	AuthURLYoutube   AuthURL = "YOUTUBE"
+	AuthURLTiktok    AuthURL = "TIKTOK"
+	AuthURLInstagram AuthURL = "INSTAGRAM"
+)
+
+var AllAuthURL = []AuthURL{
+	AuthURLYoutube,
+	AuthURLTiktok,
+	AuthURLInstagram,
+}
+
+func (e AuthURL) IsValid() bool {
+	switch e {
+	case AuthURLYoutube, AuthURLTiktok, AuthURLInstagram:
+		return true
+	}
+	return false
+}
+
+func (e AuthURL) String() string {
+	return string(e)
+}
+
+func (e *AuthURL) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AuthURL(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AuthURL", str)
+	}
+	return nil
+}
+
+func (e AuthURL) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type PlatformType string
+
+const (
+	PlatformTypeYoutube   PlatformType = "YOUTUBE"
+	PlatformTypeTiktok    PlatformType = "TIKTOK"
+	PlatformTypeInstagram PlatformType = "INSTAGRAM"
+)
+
+var AllPlatformType = []PlatformType{
+	PlatformTypeYoutube,
+	PlatformTypeTiktok,
+	PlatformTypeInstagram,
+}
+
+func (e PlatformType) IsValid() bool {
+	switch e {
+	case PlatformTypeYoutube, PlatformTypeTiktok, PlatformTypeInstagram:
+		return true
+	}
+	return false
+}
+
+func (e PlatformType) String() string {
+	return string(e)
+}
+
+func (e *PlatformType) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = PlatformType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid PlatformType", str)
+	}
+	return nil
+}
+
+func (e PlatformType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
 }

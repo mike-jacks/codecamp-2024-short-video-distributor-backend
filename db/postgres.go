@@ -80,3 +80,7 @@ func (p *Postgres) Ping(ctx context.Context) error {
 	}
 	return sqlDB.PingContext(ctx)
 }
+
+func (p *Postgres) DB() *gorm.DB {
+	return p.db
+}
