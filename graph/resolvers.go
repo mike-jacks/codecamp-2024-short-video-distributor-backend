@@ -8,17 +8,33 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/mike-jacks/codecamp-2024-short-video-distributor-backend/graph/model"
 )
 
-// CreateTodo is the resolver for the createTodo field.
-func (r *mutationResolver) CreateTodo(ctx context.Context, input model.NewTodo) (*model.Todo, error) {
-	panic(fmt.Errorf("not implemented: CreateTodo - createTodo"))
+// Empty is the resolver for the _empty field.
+func (r *mutationResolver) Empty(ctx context.Context) (*string, error) {
+	panic(fmt.Errorf("not implemented: Empty - _empty"))
 }
 
-// Todos is the resolver for the todos field.
-func (r *queryResolver) Todos(ctx context.Context) ([]*model.Todo, error) {
-	panic(fmt.Errorf("not implemented: Todos - todos"))
+// AuthorizeYouTube is the resolver for the authorizeYouTube field.
+func (r *mutationResolver) AuthorizeYouTube(ctx context.Context, code string) (bool, error) {
+	panic(fmt.Errorf("not implemented: AuthorizeYouTube - authorizeYouTube"))
+}
+
+// UploadYouTubeVideo is the resolver for the uploadYouTubeVideo field.
+func (r *mutationResolver) UploadYouTubeVideo(ctx context.Context, file graphql.Upload, title string, description string) (*model.YouTubeVideo, error) {
+	panic(fmt.Errorf("not implemented: UploadYouTubeVideo - uploadYouTubeVideo"))
+}
+
+// Empty is the resolver for the _empty field.
+func (r *queryResolver) Empty(ctx context.Context) (*string, error) {
+	panic(fmt.Errorf("not implemented: Empty - _empty"))
+}
+
+// GetYouTubeAuthURL is the resolver for the getYouTubeAuthURL field.
+func (r *queryResolver) GetYouTubeAuthURL(ctx context.Context) (*model.YouTubeAuth, error) {
+	panic(fmt.Errorf("not implemented: GetYouTubeAuthURL - getYouTubeAuthURL"))
 }
 
 // Mutation returns MutationResolver implementation.
