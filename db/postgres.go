@@ -53,7 +53,6 @@ func (p *Postgres) Connect() error {
 	if err := p.db.AutoMigrate(
 		&models.VideoDistribution{},
 		&models.PlatformCredentials{},
-		&models.YouTubeChannelDetails{},
 	); err != nil {
 		return fmt.Errorf("failed to migrate models: %w", err)
 	}

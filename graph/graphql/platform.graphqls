@@ -15,8 +15,8 @@ type Video {
   description: String!
   url: String!
   status: String!
-  channelId: String!
-  channelTitle: String!
+  accountId: String!
+  accountTitle: String!
 }
 
 enum PlatformType {
@@ -33,12 +33,13 @@ type PlatformCredentials {
   refreshToken: String!
   tokenExpiresAt: DateTime!
   isActive: Boolean!
+  accountId: String!
+  accountTitle: String!
 }
 
 extend type Query {
   getAuthURL(platformType: PlatformType!, userId: String!): String!
-  getPlatformCredentials(platformType: PlatformType!, userId: String!): [PlatformCredentials!]!
-  getYoutubeChannels(userId: String!): [YoutubeChannel!]!
+  getPlatformCredentials(userId: String!): [PlatformCredentials!]!
 }
 
 extend type Mutation {

@@ -20,6 +20,8 @@ type PlatformCredentials struct {
 	RefreshToken   string       `json:"refreshToken"`
 	TokenExpiresAt time.Time    `json:"tokenExpiresAt"`
 	IsActive       bool         `json:"isActive"`
+	AccountID      string       `json:"accountId"`
+	AccountTitle   string       `json:"accountTitle"`
 }
 
 type Query struct {
@@ -31,8 +33,8 @@ type Video struct {
 	Description  string `json:"description"`
 	URL          string `json:"url"`
 	Status       string `json:"status"`
-	ChannelID    string `json:"channelId"`
-	ChannelTitle string `json:"channelTitle"`
+	AccountID    string `json:"accountId"`
+	AccountTitle string `json:"accountTitle"`
 }
 
 type YoutubeChannel struct {

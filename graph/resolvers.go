@@ -10,6 +10,7 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/mike-jacks/codecamp-2024-short-video-distributor-backend/graph/model"
+	"github.com/mike-jacks/codecamp-2024-short-video-distributor-backend/internal/models"
 )
 
 // Empty is the resolver for the _empty field.
@@ -95,25 +96,26 @@ func (r *queryResolver) GetAuthURL(ctx context.Context, platformType model.Platf
 }
 
 // GetPlatformCredentials is the resolver for the getPlatformCredentials field.
-func (r *queryResolver) GetPlatformCredentials(ctx context.Context, platformType model.PlatformType, userID string) ([]*model.PlatformCredentials, error) {
-	switch platformType {
-	case model.PlatformTypeYoutube:
-		if r.YoutubeService == nil {
-			return nil, fmt.Errorf("youtube service not initialized")
-		}
-		return r.YoutubeService.GetActiveCredentials(ctx, userID)
-	case model.PlatformTypeTiktok:
-		return nil, fmt.Errorf("TikTok not implemented yet")
-	case model.PlatformTypeInstagram:
-		return nil, fmt.Errorf("instagram not implemented yet")
-	default:
-		return nil, fmt.Errorf("unsupported platform type: %s", platformType)
+func (r *queryResolver) GetPlatformCredentials(ctx context.Context, userID string) ([]*model.PlatformCredentials, error) {
+	var creds []*models.PlatformCredentials
+	err := r.db.Where("user_id = ?", userID).Find(&creds).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to get platform credentials: %w", err)
 	}
-}
 
-// GetYoutubeChannels is the resolver for the getYoutubeChannels field.
-func (r *queryResolver) GetYoutubeChannels(ctx context.Context, userID string) ([]*model.YoutubeChannel, error) {
-	return r.YoutubeService.GetChannels(ctx, userID)
+	result := make([]*model.PlatformCredentials, len(creds))
+	for i, cred := range creds {
+		result[i] = &model.PlatformCredentials{
+			ID:             cred.ID,
+			UserID:         cred.UserID,
+			PlatformType:   model.PlatformType(cred.PlatformType),
+			AccessToken:    cred.AccessToken,
+			RefreshToken:   cred.RefreshToken,
+			TokenExpiresAt: cred.TokenExpiresAt,
+			IsActive:       cred.IsActive,
+		}
+	}
+	return result, nil
 }
 
 // Mutation returns MutationResolver implementation.

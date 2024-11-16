@@ -155,8 +155,8 @@ func (s *YouTubeService) ExchangeAndSaveToken(ctx context.Context, code string, 
 	channel := channelResponse.Items[0]
 
 	// Check if channel already exists
-	var existingChannel models.YouTubeChannelDetails
-	err = s.db.Where("channel_id = ?", channel.Id).First(&existingChannel).Error
+	var existingCreds models.PlatformCredentials
+	err = s.db.Where("channel_id = ?", channel.Id).First(&existingCreds).Error
 	if err == nil {
 		// Channel already exists, return error
 		return nil, nil
@@ -164,17 +164,6 @@ func (s *YouTubeService) ExchangeAndSaveToken(ctx context.Context, code string, 
 		// Unexpected error
 		return nil, fmt.Errorf("error checking for existing channel: %w", err)
 	}
-
-	// Start transaction for new credentials
-	tx := s.db.Begin()
-	if tx.Error != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %w", tx.Error)
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
 
 	// Create new credentials
 	creds := &models.PlatformCredentials{
@@ -184,27 +173,12 @@ func (s *YouTubeService) ExchangeAndSaveToken(ctx context.Context, code string, 
 		RefreshToken:   token.RefreshToken,
 		TokenExpiresAt: token.Expiry,
 		IsActive:       true,
+		AccountID:      channel.Id,
+		AccountTitle:   channel.Snippet.Title,
 	}
 
-	if err := tx.Create(creds).Error; err != nil {
-		tx.Rollback()
+	if err := s.db.Create(creds).Error; err != nil {
 		return nil, fmt.Errorf("failed to save credentials: %w", err)
-	}
-
-	// Save channel details
-	channelDetails := &models.YouTubeChannelDetails{
-		CredentialsID: creds.ID,
-		ChannelID:     channel.Id,
-		ChannelTitle:  channel.Snippet.Title,
-	}
-
-	if err := tx.Create(channelDetails).Error; err != nil {
-		tx.Rollback()
-		return nil, fmt.Errorf("failed to save channel details: %w", err)
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return &model.PlatformCredentials{
@@ -215,6 +189,8 @@ func (s *YouTubeService) ExchangeAndSaveToken(ctx context.Context, code string, 
 		RefreshToken:   creds.RefreshToken,
 		TokenExpiresAt: creds.TokenExpiresAt,
 		IsActive:       creds.IsActive,
+		AccountID:      creds.AccountID,
+		AccountTitle:   creds.AccountTitle,
 	}, nil
 }
 
@@ -282,41 +258,17 @@ func (s *YouTubeService) UploadVideo(ctx context.Context, userID string, channel
 		Description:  response.Snippet.Description,
 		URL:          fmt.Sprintf("https://www.youtube.com/watch?v=%s", response.Id),
 		Status:       response.Status.PrivacyStatus,
-		ChannelID:    response.Snippet.ChannelId,
-		ChannelTitle: response.Snippet.ChannelTitle,
+		AccountID:    response.Snippet.ChannelId,
+		AccountTitle: response.Snippet.ChannelTitle,
 	}, nil
-}
-
-func (s *YouTubeService) GetChannels(ctx context.Context, userID string) ([]*model.YoutubeChannel, error) {
-	var channels []*models.YouTubeChannelDetails
-
-	err := s.db.Joins("JOIN platform_credentials ON youtube_channel_details.credentials_id = platform_credentials.id").
-		Where("platform_credentials.user_id = ? AND platform_credentials.is_active = ?",
-			userID, true).
-		Find(&channels).Error
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to get channels: %w", err)
-	}
-
-	result := make([]*model.YoutubeChannel, len(channels))
-	for i, channel := range channels {
-		result[i] = &model.YoutubeChannel{
-			ID:    channel.ChannelID,
-			Title: channel.ChannelTitle,
-		}
-	}
-
-	return result, nil
 }
 
 func (s *YouTubeService) getYoutubeClient(ctx context.Context, userID string, channelId string) (*youtube.Service, error) {
 	// Get active credentials for the user and channel
-	var channelDetails models.YouTubeChannelDetails
-	err := s.db.Preload("PlatformCredentials").
-		Where("youtube_channel_details.channel_id = ? AND platform_credentials.user_id = ? AND platform_credentials.is_active = ?",
+	var platformCredentials models.PlatformCredentials
+	err := s.db.Where("platform_credentials.account_id = ? AND platform_credentials.user_id = ? AND platform_credentials.is_active = ?",
 			channelId, userID, true).
-		First(&channelDetails).Error
+		First(&platformCredentials).Error
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -327,9 +279,9 @@ func (s *YouTubeService) getYoutubeClient(ctx context.Context, userID string, ch
 
 	// CreateOAuth2 token from stored credentials
 	token := &oauth2.Token{
-		AccessToken:  channelDetails.PlatformCredentials.AccessToken,
-		RefreshToken: channelDetails.PlatformCredentials.RefreshToken,
-		Expiry:       channelDetails.PlatformCredentials.TokenExpiresAt,
+		AccessToken:  platformCredentials.AccessToken,
+		RefreshToken: platformCredentials.RefreshToken,
+		Expiry:       platformCredentials.TokenExpiresAt,
 	}
 
 	// Create YouTube client
