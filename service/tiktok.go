@@ -63,13 +63,7 @@ func NewTikTokService(db *gorm.DB) *TikTokService {
 }
 
 func (s *TikTokService) getUserInfo(accessToken string, openID string) (*TikTokUserInfo, error) {
-	// TikTok API endpoint for user info
-	params := url.Values{}
-	params.Add("access_token", accessToken)
-	params.Add("open_id", openID)
-	params.Add("fields", "open_id,display_name,avatar_url")
-
-	userInfoURL := "https://open.tiktokapis.com/v2/user/info/?" + params.Encode()
+	userInfoURL := "https://open.tiktokapis.com/v2/user/info/"
 
 	// Create request
 	req, err := http.NewRequest("GET", userInfoURL, nil)
@@ -77,15 +71,19 @@ func (s *TikTokService) getUserInfo(accessToken string, openID string) (*TikTokU
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Add required headers
-	req.Header.Add("Authorization", "Bearer "+accessToken)
+	// Set the correct Authorization header
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
 
-	// Add query parameters
+	// Add query parameters including openID
 	q := req.URL.Query()
+	q.Add("open_id", openID) // Add openID as query parameter
 	q.Add("fields", "open_id,display_name,avatar_url")
 	req.URL.RawQuery = q.Encode()
 
-	// Make the request
+	// Add debug logging
+	log.Printf("User info request headers: %v", req.Header)
+	log.Printf("User info URL: %s", req.URL.String())
+
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -93,7 +91,11 @@ func (s *TikTokService) getUserInfo(accessToken string, openID string) (*TikTokU
 	}
 	defer resp.Body.Close()
 
-	// Parse response
+	// Debug response
+	respBody, _ := io.ReadAll(resp.Body)
+	log.Printf("User info response: %s", string(respBody))
+	resp.Body = io.NopCloser(bytes.NewBuffer(respBody))
+
 	var response struct {
 		Data  TikTokUserInfo `json:"data"`
 		Error struct {
