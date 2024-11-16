@@ -37,7 +37,7 @@ type PlatformCredentials {
 
 extend type Query {
   getAuthURL(platformType: PlatformType!, userId: String!): String!
-  getPlatformCredentials(platformType: PlatformType!, userId: String!): PlatformCredentials!
+  getPlatformCredentials(platformType: PlatformType!, userId: String!): [PlatformCredentials!]!
   getYoutubeChannels(userId: String!): [YoutubeChannel!]!
 }
 

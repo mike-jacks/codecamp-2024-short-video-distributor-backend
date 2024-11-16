@@ -97,7 +97,7 @@ type MutationResolver interface {
 type QueryResolver interface {
 	Empty(ctx context.Context) (*string, error)
 	GetAuthURL(ctx context.Context, platformType model.PlatformType, userID string) (string, error)
-	GetPlatformCredentials(ctx context.Context, platformType model.PlatformType, userID string) (*model.PlatformCredentials, error)
+	GetPlatformCredentials(ctx context.Context, platformType model.PlatformType, userID string) ([]*model.PlatformCredentials, error)
 	GetYoutubeChannels(ctx context.Context, userID string) ([]*model.YoutubeChannel, error)
 }
 
@@ -1507,9 +1507,9 @@ func (ec *executionContext) _Query_getPlatformCredentials(ctx context.Context, f
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.PlatformCredentials)
+	res := resTmp.([]*model.PlatformCredentials)
 	fc.Result = res
-	return ec.marshalNPlatformCredentials2ᚖgithubᚗcomᚋmikeᚑjacksᚋcodecampᚑ2024ᚑshortᚑvideoᚑdistributorᚑbackendᚋgraphᚋmodelᚐPlatformCredentials(ctx, field.Selections, res)
+	return ec.marshalNPlatformCredentials2ᚕᚖgithubᚗcomᚋmikeᚑjacksᚋcodecampᚑ2024ᚑshortᚑvideoᚑdistributorᚑbackendᚋgraphᚋmodelᚐPlatformCredentialsᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_getPlatformCredentials(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -4659,8 +4659,48 @@ func (ec *executionContext) marshalNDateTime2timeᚐTime(ctx context.Context, se
 	return res
 }
 
-func (ec *executionContext) marshalNPlatformCredentials2githubᚗcomᚋmikeᚑjacksᚋcodecampᚑ2024ᚑshortᚑvideoᚑdistributorᚑbackendᚋgraphᚋmodelᚐPlatformCredentials(ctx context.Context, sel ast.SelectionSet, v model.PlatformCredentials) graphql.Marshaler {
-	return ec._PlatformCredentials(ctx, sel, &v)
+func (ec *executionContext) marshalNPlatformCredentials2ᚕᚖgithubᚗcomᚋmikeᚑjacksᚋcodecampᚑ2024ᚑshortᚑvideoᚑdistributorᚑbackendᚋgraphᚋmodelᚐPlatformCredentialsᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.PlatformCredentials) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNPlatformCredentials2ᚖgithubᚗcomᚋmikeᚑjacksᚋcodecampᚑ2024ᚑshortᚑvideoᚑdistributorᚑbackendᚋgraphᚋmodelᚐPlatformCredentials(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) marshalNPlatformCredentials2ᚖgithubᚗcomᚋmikeᚑjacksᚋcodecampᚑ2024ᚑshortᚑvideoᚑdistributorᚑbackendᚋgraphᚋmodelᚐPlatformCredentials(ctx context.Context, sel ast.SelectionSet, v *model.PlatformCredentials) graphql.Marshaler {
