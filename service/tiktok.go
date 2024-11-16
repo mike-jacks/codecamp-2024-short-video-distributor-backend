@@ -202,6 +202,10 @@ func (s *TikTokService) ExchangeAndSaveToken(ctx context.Context, code string, u
 			ExpiresIn    int    `json:"expires_in"`
 			RefreshToken string `json:"refresh_token"`
 		} `json:"data"`
+		Error struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResponse); err != nil {
