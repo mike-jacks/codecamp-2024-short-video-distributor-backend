@@ -220,8 +220,9 @@ func (s *TikTokService) ExchangeAndSaveToken(ctx context.Context, code string, u
 		return nil, err
 	}
 
-	fmt.Println("\n\nuserInfo: ", userInfo)
-	fmt.Println("Nickname: ", userInfo.Nickname)
+	fmt.Println("\n\nuserInfo: ", *userInfo)
+	activeUser := *userInfo
+	fmt.Println("Nickname: ", activeUser.Nickname)
 
 	// Save credentials
 	creds := &models.PlatformCredentials{
@@ -232,7 +233,7 @@ func (s *TikTokService) ExchangeAndSaveToken(ctx context.Context, code string, u
 		TokenExpiresAt: time.Now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second),
 		IsActive:       true,
 		AccountID:      tokenResponse.OpenID,
-		AccountTitle:   userInfo.Nickname, // Using the display name from user info
+		AccountTitle:   activeUser.Nickname, // Using the display name from user info
 	}
 
 	if err := s.db.Create(creds).Error; err != nil {
