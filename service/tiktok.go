@@ -271,61 +271,62 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 	file.File = bytes.NewReader(fileBytes)
 
 	// Create initialization payload
-	initPayload := struct {
-		PostInfo struct {
-			Title                 string `json:"title"`
-			PrivacyLevel         string `json:"privacy_level"`
-			DisableDuet          bool   `json:"disable_duet"`
-			DisableComment       bool   `json:"disable_comment"`
-			DisableStitch        bool   `json:"disable_stitch"`
-			VideoCoverTimestamp  int64  `json:"video_cover_timestamp_ms"`
-		} `json:"post_info"`
-		SourceInfo struct {
-			Source          string `json:"source"`
-			VideoSize       int    `json:"video_size"`
-			ChunkSize       int    `json:"chunk_size"`
-			TotalChunkCount int    `json:"total_chunk_count"`
-		} `json:"source_info"`
-	}{
-		PostInfo: struct {
-			Title                 string `json:"title"`
-			PrivacyLevel         string `json:"privacy_level"`
-			DisableDuet          bool   `json:"disable_duet"`
-			DisableComment       bool   `json:"disable_comment"`
-			DisableStitch        bool   `json:"disable_stitch"`
-			VideoCoverTimestamp  int64  `json:"video_cover_timestamp_ms"`
-		}{
+	type PostInfo struct {
+		Title                string `json:"title"`
+		PrivacyLevel        string `json:"privacy_level"`
+		DisableDuet         bool   `json:"disable_duet"`
+		DisableComment      bool   `json:"disable_comment"`
+		DisableStitch       bool   `json:"disable_stitch"`
+		VideoCoverTimestamp int64  `json:"video_cover_timestamp_ms"`
+	}
+
+	type SourceInfo struct {
+		Source          string `json:"source"`
+		VideoSize       int    `json:"video_size"`
+		ChunkSize       int    `json:"chunk_size"`
+		TotalChunkCount int    `json:"total_chunk_count"`
+	}
+
+	type InitPayload struct {
+		PostInfo   PostInfo   `json:"post_info"`
+		SourceInfo SourceInfo `json:"source_info"`
+	}
+
+	// Create the payload
+	payload := InitPayload{
+		PostInfo: PostInfo{
 			Title:                title,
-			PrivacyLevel:         "PUBLIC", // or use privacyStatus if provided
-			DisableDuet:          false,
-			DisableComment:       false,
-			DisableStitch:        false,
-			VideoCoverTimestamp:  1000,
+			PrivacyLevel:         "PUBLIC",
+			DisableDuet:         false,
+			DisableComment:      false,
+			DisableStitch:       false,
+			VideoCoverTimestamp: 1000,
 		},
-		SourceInfo: struct {
-			Source          string `json:"source"`
-			VideoSize       int    `json:"video_size"`
-			ChunkSize       int    `json:"chunk_size"`
-			TotalChunkCount int    `json:"total_chunk_count"`
-		}{
+		SourceInfo: SourceInfo{
 			Source:          "FILE_UPLOAD",
 			VideoSize:       fileSize,
-			ChunkSize:       fileSize, // Since we're uploading in one chunk
+			ChunkSize:       fileSize,
 			TotalChunkCount: 1,
 		},
 	}
 
-	// Add privacy level handling if provided
-	if privacyStatus != nil {
-		initPayload.PostInfo.PrivacyLevel = *privacyStatus
-	}
+	// Debug logging before marshaling
+	log.Printf("Init Payload Structure:")
+	log.Printf("Post Info:")
+	log.Printf("- Title: %s", payload.PostInfo.Title)
+	log.Printf("- Privacy Level: %s", payload.PostInfo.PrivacyLevel)
+	log.Printf("Source Info:")
+	log.Printf("- Video Size: %d", payload.SourceInfo.VideoSize)
+	log.Printf("- Chunk Size: %d", payload.SourceInfo.ChunkSize)
 
-	// Debug logging for init payload
-	payloadBytes, err := json.Marshal(initPayload)
+	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
+		log.Printf("Failed to marshal payload: %v", err)
 		return nil, fmt.Errorf("failed to marshal init payload: %w", err)
 	}
-	log.Printf("Init payload: %s", string(payloadBytes))
+
+	// Debug the actual JSON being sent
+	log.Printf("Init payload JSON: %s", string(payloadBytes))
 
 	// Create initialization request
 	initReq, err := http.NewRequest("POST", initURL, bytes.NewBuffer(payloadBytes))
@@ -334,12 +335,18 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 	}
 
 	initReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
-	initReq.Header.Set("Content-Type", "application/json")
+	initReq.Header.Set("Content-Type", "application/json; charset=UTF-8")
 
 	// Add query parameters
 	q := initReq.URL.Query()
 	q.Add("open_id", accountID)
 	initReq.URL.RawQuery = q.Encode()
+
+	// Debug the final request
+	log.Printf("Init Request Details:")
+	log.Printf("- URL: %s", initReq.URL.String())
+	log.Printf("- Headers: %v", initReq.Header)
+	log.Printf("- Body: %s", string(payloadBytes))
 
 	// Make initialization request
 	client := &http.Client{}
