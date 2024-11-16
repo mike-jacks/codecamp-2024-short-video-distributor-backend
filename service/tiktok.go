@@ -272,7 +272,7 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 
 	// Create initialization payload
 	type PostInfo struct {
-		Title                string `json:"title"`
+		Title               string `json:"title"`
 		PrivacyLevel        string `json:"privacy_level"`
 		DisableDuet         bool   `json:"disable_duet"`
 		DisableComment      bool   `json:"disable_comment"`
@@ -295,8 +295,8 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 	// Create the payload
 	payload := InitPayload{
 		PostInfo: PostInfo{
-			Title:                title,
-			PrivacyLevel:         "PUBLIC_TO_EVERYONE",
+			Title:               title,
+			PrivacyLevel:        "SELF_ONLY",
 			DisableDuet:         false,
 			DisableComment:      false,
 			DisableStitch:       false,
@@ -451,7 +451,7 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 
 	// Step 3: Check upload status
 	statusURL := "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
-	
+
 	log.Printf("Video ID from init response: %s", initResponse.Data.VideoID)
 
 	statusPayload := struct {
@@ -506,7 +506,7 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 		Data struct {
 			Status   string `json:"status"`
 			VideoID  string `json:"video_id"`
-			 ShareURL string `json:"share_url"`
+			ShareURL string `json:"share_url"`
 		} `json:"data"`
 		Error struct {
 			Code    string `json:"code"`
