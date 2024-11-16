@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -157,13 +158,26 @@ func (s *TikTokService) GetAuthURL(userID string) (string, error) {
 func (s *TikTokService) ExchangeAndSaveToken(ctx context.Context, code string, userID string) (*model.PlatformCredentials, error) {
 	// Exchange code for access token
 	tokenURL := "https://open.tiktokapis.com/v2/oauth/token/"
-	resp, err := http.PostForm(tokenURL, url.Values{
-		"client_key":    {s.clientID},
-		"client_secret": {s.clientSecret},
-		"code":          {code},
-		"grant_type":    {"authorization_code"},
-		"code_verifier": {s.codeVerifier},
-	})
+
+	data := url.Values{}
+	data.Add("client_key", s.clientID)
+	data.Add("client_secret", s.clientSecret)
+	data.Add("code", code)
+	data.Add("grant_type", "authorization_code")
+	data.Add("redirect_uri", s.redirectURI)
+	data.Add("code_verifier", s.codeVerifier)
+
+	req, err := http.NewRequest("POST", tokenURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set required headers
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Cache-Control", "no-cache")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to exchange code: %w", err)
 	}
