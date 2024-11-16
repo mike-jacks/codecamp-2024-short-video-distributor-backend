@@ -57,7 +57,12 @@ func NewYouTubeService(db *gorm.DB) *YouTubeService {
 		Endpoint: google.Endpoint,
 	}
 
-	return &YouTubeService{db: db, config: config}
+	return &YouTubeService{
+		db:           db,
+		config:       config,
+		authSessions: make(map[string]*AuthSession),
+		sessionMux:   sync.RWMutex{},
+	}
 }
 
 func (s *YouTubeService) GetAuthURL(userID string) (string, error) {
