@@ -55,7 +55,7 @@ func NewTikTokService(db *gorm.DB) *TikTokService {
 		clientID:     clientID,
 		clientSecret: clientSecret,
 		redirectURI:  redirectURI,
-		authURI:      os.Getenv("TIKTOK_AUTH_URI"),
+		authURI:      "https://www.tiktok.com/v2/auth/authorize/",
 		authSessions: make(map[string]*AuthSession),
 		sessionMux:   sync.RWMutex{},
 	}
@@ -63,7 +63,12 @@ func NewTikTokService(db *gorm.DB) *TikTokService {
 
 func (s *TikTokService) getUserInfo(accessToken string, openID string) (*TikTokUserInfo, error) {
 	// TikTok API endpoint for user info
-	userInfoURL := "https://open.tiktokapis.com/v2/user/info/"
+	params := url.Values{}
+	params.Add("access_token", accessToken)
+	params.Add("open_id", openID)
+	params.Add("fields", "open_id,display_name,avatar_url")
+
+	userInfoURL := "https://open.tiktokapis.com/v2/user/info/?" + params.Encode()
 
 	// Create request
 	req, err := http.NewRequest("GET", userInfoURL, nil)
