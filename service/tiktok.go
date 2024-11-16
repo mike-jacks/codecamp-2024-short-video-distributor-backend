@@ -26,9 +26,17 @@ import (
 )
 
 type TikTokUserInfo struct {
-	Nickname string `json:"display_name"`
-	Avatar   string `json:"avatar_url"`
-	OpenID   string `json:"open_id"`
+	Data struct {
+		User struct {
+			DisplayName string `json:"display_name"`
+			AvatarURL   string `json:"avatar_url"`
+		} `json:"user"`
+	} `json:"data"`
+	Error struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+		LogID   string `json:"log_id"`
+	} `json:"error"`
 }
 
 type TikTokService struct {
@@ -211,20 +219,22 @@ func (s *TikTokService) ExchangeAndSaveToken(ctx context.Context, code string, u
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResponse); err != nil {
+		log.Printf("Failed to decode token response: %v", err)
 		return nil, fmt.Errorf("failed to decode token response: %w", err)
 	}
+
+	log.Printf("Decoded token response: %+v", tokenResponse)
 
 	// Get user info
 	userInfo, err := s.getUserInfo(tokenResponse.AccessToken, tokenResponse.OpenID)
 	if err != nil {
+		log.Printf("Failed to get user info: %v", err)
 		return nil, err
 	}
 
-	fmt.Println("\n\nuserInfo: ", *userInfo)
-	activeUser := *userInfo
-	fmt.Println("Nickname: ", activeUser.Nickname)
+	log.Printf("User info received: %+v", userInfo)
 
-	// Save credentials
+	// Create credentials
 	creds := &models.PlatformCredentials{
 		UserID:         userID,
 		PlatformType:   models.TikTok,
@@ -233,11 +243,12 @@ func (s *TikTokService) ExchangeAndSaveToken(ctx context.Context, code string, u
 		TokenExpiresAt: time.Now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second),
 		IsActive:       true,
 		AccountID:      tokenResponse.OpenID,
-		AccountTitle:   activeUser.Nickname, // Using the display name from user info
+		AccountTitle:   userInfo.Data.User.DisplayName,
 	}
 
 	if err := s.db.Create(creds).Error; err != nil {
-		return nil, nil
+		log.Printf("Failed to save credentials: %v", err)
+		return nil, fmt.Errorf("failed to save credentials: %w", err)
 	}
 
 	return &model.PlatformCredentials{
