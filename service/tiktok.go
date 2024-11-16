@@ -110,7 +110,7 @@ func (s *TikTokService) getUserInfo(accessToken string, openID string) (*TikTokU
 	}
 
 	// Check for API errors
-	if response.Error.Code != "" {
+	if response.Error.Code != "ok" {
 		return nil, fmt.Errorf("TikTok API error: %s - %s", response.Error.Code, response.Error.Message)
 	}
 
