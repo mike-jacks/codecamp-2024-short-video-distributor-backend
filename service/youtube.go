@@ -156,7 +156,7 @@ func (s *YouTubeService) ExchangeAndSaveToken(ctx context.Context, code string, 
 
 	// Check if channel already exists
 	var existingCreds models.PlatformCredentials
-	err = s.db.Where("channel_id = ?", channel.Id).First(&existingCreds).Error
+	err = s.db.Where("account_id = ?", channel.Id).First(&existingCreds).Error
 	if err == nil {
 		// Channel already exists, return error
 		return nil, nil
@@ -267,7 +267,7 @@ func (s *YouTubeService) getYoutubeClient(ctx context.Context, userID string, ch
 	// Get active credentials for the user and channel
 	var platformCredentials models.PlatformCredentials
 	err := s.db.Where("platform_credentials.account_id = ? AND platform_credentials.user_id = ? AND platform_credentials.is_active = ?",
-			channelId, userID, true).
+		channelId, userID, true).
 		First(&platformCredentials).Error
 
 	if err != nil {
