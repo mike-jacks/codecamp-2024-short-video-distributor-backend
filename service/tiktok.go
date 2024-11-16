@@ -338,6 +338,12 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 		return nil, fmt.Errorf("TikTok API init error: %s - %s", initResponse.Error.Code, initResponse.Error.Message)
 	}
 
+	// Add detailed debug logging for init response
+	log.Printf("Init Response Details:")
+	log.Printf("- Upload URL: %s", initResponse.Data.UploadURL)
+	log.Printf("- Video ID: %s", initResponse.Data.VideoID)
+	log.Printf("- Error Code: %s", initResponse.Error.Code)
+
 	fmt.Println("\n\ninitResponse: ", initResponse)
 
 	// Step 2: Upload video to the provided URL
@@ -397,23 +403,12 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 	// Step 3: Check upload status
 	statusURL := "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
 	
-	// Debug the upload_id from the URL
-	uploadURL := uploadReq.URL.String()
-	log.Printf("Upload URL for parsing: %s", uploadURL)
-	
-	parsedURL, err := url.Parse(uploadURL)
-	if err != nil {
-		log.Printf("Failed to parse upload URL: %v", err)
-		return nil, fmt.Errorf("failed to parse upload URL: %w", err)
-	}
-	
-	uploadID := parsedURL.Query().Get("upload_id")
-	log.Printf("Extracted upload_id: %s", uploadID)
+	log.Printf("Video ID from init response: %s", initResponse.Data.VideoID)
 
 	statusPayload := struct {
 		PublishID string `json:"publish_id"`
 	}{
-		PublishID: uploadID,
+		PublishID: initResponse.Data.VideoID,
 	}
 
 	statusBytes, err := json.Marshal(statusPayload)
@@ -422,8 +417,7 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 		return nil, fmt.Errorf("failed to marshal status payload: %w", err)
 	}
 
-	log.Printf("Status check payload: %s", string(statusBytes))
-
+	// Add query parameter for open_id
 	statusReq, err := http.NewRequest("POST", statusURL, bytes.NewBuffer(statusBytes))
 	if err != nil {
 		log.Printf("Failed to create status request: %v", err)
@@ -433,12 +427,10 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 	statusReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
 	statusReq.Header.Set("Content-Type", "application/json; charset=UTF-8")
 
-	// Debug status request
-	log.Printf("Status Request Details:")
-	log.Printf("- Method: %s", statusReq.Method)
-	log.Printf("- URL: %s", statusReq.URL.String())
-	log.Printf("- Headers: %v", statusReq.Header)
-	log.Printf("- Body: %s", string(statusBytes))
+	// Add open_id to query parameters
+	q = statusReq.URL.Query()
+	q.Add("open_id", accountID)
+	statusReq.URL.RawQuery = q.Encode()
 
 	log.Printf("Sending status check request...")
 	statusResp, err := client.Do(statusReq)
