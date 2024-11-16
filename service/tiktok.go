@@ -341,60 +341,58 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 	fmt.Println("\n\ninitResponse: ", initResponse)
 
 	// Step 2: Upload video to the provided URL
+	log.Printf("Starting Step 2 - Video Upload")
+	log.Printf("File size: %d bytes", fileSize)
+	log.Printf("First 100 bytes of file content: %v", fileBytes[:min(100, len(fileBytes))])
+
+	// Debug init response data
+	log.Printf("Init Response Data - Upload URL: %s", initResponse.Data.UploadURL)
+	log.Printf("Init Response Data - Video ID: %s", initResponse.Data.VideoID)
+
 	uploadReq, err := http.NewRequest("PUT", initResponse.Data.UploadURL, bytes.NewReader(fileBytes))
 	if err != nil {
+		log.Printf("Failed to create upload request: %v", err)
 		return nil, fmt.Errorf("failed to create upload request: %w", err)
 	}
 
-	// Set required headers for upload
+	// Set and log headers
 	uploadReq.Header.Set("Content-Type", "video/mp4")
 	uploadReq.Header.Set("Content-Range", fmt.Sprintf("bytes 0-%d/%d", fileSize-1, fileSize))
+	uploadReq.Header.Set("Content-Length", fmt.Sprintf("%d", fileSize))
 
-	// Debug logging
-	log.Printf("Upload URL: %s", initResponse.Data.UploadURL)
-	log.Printf("Upload headers: %v", uploadReq.Header)
+	log.Printf("Upload Request Details:")
+	log.Printf("- Method: %s", uploadReq.Method)
+	log.Printf("- URL: %s", uploadReq.URL.String())
+	log.Printf("- Headers: %v", uploadReq.Header)
+	log.Printf("- Content Length: %d", uploadReq.ContentLength)
 
+	// Make request
+	client = &http.Client{
+		Timeout: 5 * time.Minute, // Increased timeout for large files
+	}
+
+	log.Printf("Sending upload request...")
 	uploadResp, err := client.Do(uploadReq)
 	if err != nil {
+		log.Printf("Upload request failed: %v", err)
 		return nil, fmt.Errorf("failed to upload video: %w", err)
 	}
 	defer uploadResp.Body.Close()
 
 	// Read and log response
 	respBody, _ := io.ReadAll(uploadResp.Body)
-	log.Printf("Upload response status: %d", uploadResp.StatusCode)
-	log.Printf("Upload response body: %s", string(respBody))
+	log.Printf("Upload Response Details:")
+	log.Printf("- Status Code: %d", uploadResp.StatusCode)
+	log.Printf("- Status: %s", uploadResp.Status)
+	log.Printf("- Headers: %v", uploadResp.Header)
+	log.Printf("- Body: %s", string(respBody))
 
-	if uploadResp.StatusCode != http.StatusOK {
+	if uploadResp.StatusCode != http.StatusOK && uploadResp.StatusCode != http.StatusCreated {
+		log.Printf("Upload failed with non-success status code")
 		return nil, fmt.Errorf("upload failed with status %d: %s", uploadResp.StatusCode, string(respBody))
 	}
 
-	// Step 3: Check upload status
-	statusURL := "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
-	statusPayload := struct {
-		PublishID string `json:"publish_id"`
-	}{
-		PublishID: initResponse.Data.VideoID,
-	}
-
-	statusBytes, err := json.Marshal(statusPayload)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal status payload: %w", err)
-	}
-
-	statusReq, err := http.NewRequest("POST", statusURL, bytes.NewBuffer(statusBytes))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create status request: %w", err)
-	}
-
-	statusReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
-	statusReq.Header.Set("Content-Type", "application/json; charset=UTF-8")
-
-	statusResp, err := client.Do(statusReq)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check upload status: %w", err)
-	}
-	defer statusResp.Body.Close()
+	log.Printf("Upload appears successful, proceeding to status check...")
 
 	var statusResponse struct {
 		Data struct {
@@ -408,7 +406,7 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 		} `json:"error"`
 	}
 
-	if err := json.NewDecoder(statusResp.Body).Decode(&statusResponse); err != nil {
+	if err := json.NewDecoder(uploadResp.Body).Decode(&statusResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode status response: %w", err)
 	}
 
