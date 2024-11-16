@@ -394,11 +394,78 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 
 	log.Printf("Upload appears successful, proceeding to status check...")
 
+	// Step 3: Check upload status
+	statusURL := "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
+	
+	// Debug the upload_id from the URL
+	uploadURL := uploadReq.URL.String()
+	log.Printf("Upload URL for parsing: %s", uploadURL)
+	
+	parsedURL, err := url.Parse(uploadURL)
+	if err != nil {
+		log.Printf("Failed to parse upload URL: %v", err)
+		return nil, fmt.Errorf("failed to parse upload URL: %w", err)
+	}
+	
+	uploadID := parsedURL.Query().Get("upload_id")
+	log.Printf("Extracted upload_id: %s", uploadID)
+
+	statusPayload := struct {
+		PublishID string `json:"publish_id"`
+	}{
+		PublishID: uploadID,
+	}
+
+	statusBytes, err := json.Marshal(statusPayload)
+	if err != nil {
+		log.Printf("Failed to marshal status payload: %v", err)
+		return nil, fmt.Errorf("failed to marshal status payload: %w", err)
+	}
+
+	log.Printf("Status check payload: %s", string(statusBytes))
+
+	statusReq, err := http.NewRequest("POST", statusURL, bytes.NewBuffer(statusBytes))
+	if err != nil {
+		log.Printf("Failed to create status request: %v", err)
+		return nil, fmt.Errorf("failed to create status request: %w", err)
+	}
+
+	statusReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	statusReq.Header.Set("Content-Type", "application/json; charset=UTF-8")
+
+	// Debug status request
+	log.Printf("Status Request Details:")
+	log.Printf("- Method: %s", statusReq.Method)
+	log.Printf("- URL: %s", statusReq.URL.String())
+	log.Printf("- Headers: %v", statusReq.Header)
+	log.Printf("- Body: %s", string(statusBytes))
+
+	log.Printf("Sending status check request...")
+	statusResp, err := client.Do(statusReq)
+	if err != nil {
+		log.Printf("Status request failed: %v", err)
+		return nil, fmt.Errorf("failed to check status: %w", err)
+	}
+	defer statusResp.Body.Close()
+
+	// Read and log status response
+	statusRespBody, err := io.ReadAll(statusResp.Body)
+	if err != nil {
+		log.Printf("Failed to read status response body: %v", err)
+		return nil, fmt.Errorf("failed to read status response: %w", err)
+	}
+
+	log.Printf("Status Response Details:")
+	log.Printf("- Status Code: %d", statusResp.StatusCode)
+	log.Printf("- Status: %s", statusResp.Status)
+	log.Printf("- Headers: %v", statusResp.Header)
+	log.Printf("- Body: %s", string(statusRespBody))
+
 	var statusResponse struct {
 		Data struct {
 			Status   string `json:"status"`
 			VideoID  string `json:"video_id"`
-			ShareURL string `json:"share_url"`
+			 ShareURL string `json:"share_url"`
 		} `json:"data"`
 		Error struct {
 			Code    string `json:"code"`
@@ -406,112 +473,20 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 		} `json:"error"`
 	}
 
-	if err := json.NewDecoder(uploadResp.Body).Decode(&statusResponse); err != nil {
+	// Create new reader for JSON decoding
+	if err := json.NewDecoder(bytes.NewReader(statusRespBody)).Decode(&statusResponse); err != nil {
+		log.Printf("Failed to decode status response: %v", err)
 		return nil, fmt.Errorf("failed to decode status response: %w", err)
 	}
 
-	// After successful upload (201 status)
-	log.Printf("Upload successful, proceeding to publish...")
-	
-	// Step 3: Publish the video
-	publishURL := "https://open.tiktokapis.com/v2/post/publish/inbox/video/publish/"
-	
-	// Debug video ID from init response
-	log.Printf("Video ID from init response: %s", initResponse.Data.VideoID)
-	
-	publishPayload := struct {
-		VideoID     string `json:"video_id"`
-		Title       string `json:"title"`
-		Description string `json:"description"`
-	}{
-		VideoID:     initResponse.Data.VideoID,
-		Title:       title,
-		Description: description,
-	}
-
-	publishBytes, err := json.Marshal(publishPayload)
-	if err != nil {
-		log.Printf("Failed to marshal publish payload: %v", err)
-		return nil, fmt.Errorf("failed to marshal publish payload: %w", err)
-	}
-
-	// Debug publish payload
-	log.Printf("Publish payload: %s", string(publishBytes))
-
-	publishReq, err := http.NewRequest("POST", publishURL, bytes.NewBuffer(publishBytes))
-	if err != nil {
-		log.Printf("Failed to create publish request: %v", err)
-		return nil, fmt.Errorf("failed to create publish request: %w", err)
-	}
-
-	publishReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
-	publishReq.Header.Set("Content-Type", "application/json")
-
-	// Add query parameters
-	q = publishReq.URL.Query()
-	q.Add("open_id", accountID)
-	publishReq.URL.RawQuery = q.Encode()
-
-	// Debug publish request
-	log.Printf("Publish Request Details:")
-	log.Printf("- Method: %s", publishReq.Method)
-	log.Printf("- URL: %s", publishReq.URL.String())
-	log.Printf("- Headers: %v", publishReq.Header)
-	log.Printf("- Body: %s", string(publishBytes))
-
-	log.Printf("Sending publish request...")
-	publishResp, err := client.Do(publishReq)
-	if err != nil {
-		log.Printf("Publish request failed: %v", err)
-		return nil, fmt.Errorf("failed to publish video: %w", err)
-	}
-	defer publishResp.Body.Close()
-
-	// Read and log publish response
-	publishRespBody, err := io.ReadAll(publishResp.Body)
-	if err != nil {
-		log.Printf("Failed to read publish response body: %v", err)
-		return nil, fmt.Errorf("failed to read publish response: %w", err)
-	}
-	
-	log.Printf("Publish Response Details:")
-	log.Printf("- Status Code: %d", publishResp.StatusCode)
-	log.Printf("- Status: %s", publishResp.Status)
-	log.Printf("- Headers: %v", publishResp.Header)
-	log.Printf("- Body: %s", string(publishRespBody))
-
-	// Create new reader for JSON decoding
-	publishResp.Body = io.NopCloser(bytes.NewBuffer(publishRespBody))
-
-	var publishResponse struct {
-		Data struct {
-			PublishID string `json:"publish_id"`
-			ShareURL  string `json:"share_url"`
-		} `json:"data"`
-		Error struct {
-			Code    string `json:"code"`
-			Message string `json:"message"`
-		} `json:"error"`
-	}
-
-	if err := json.NewDecoder(publishResp.Body).Decode(&publishResponse); err != nil {
-		log.Printf("Failed to decode publish response: %v", err)
-		return nil, fmt.Errorf("failed to decode publish response: %w", err)
-	}
-
-	log.Printf("Decoded publish response: %+v", publishResponse)
-
-	if publishResponse.Error.Code != "" && publishResponse.Error.Code != "ok" {
-		log.Printf("TikTok API publish error: %s - %s", publishResponse.Error.Code, publishResponse.Error.Message)
-		return nil, fmt.Errorf("TikTok API publish error: %s - %s", publishResponse.Error.Code, publishResponse.Error.Message)
-	}
+	log.Printf("Decoded status response: %+v", statusResponse)
 
 	return &model.VideoDistribution{
-		ID:           publishResponse.Data.PublishID,
+		ID:           statusResponse.Data.VideoID,
 		Title:        title,
 		Description:  description,
-		URL:          publishResponse.Data.ShareURL,
-		Status:       string(models.Processing),
+		URL:          statusResponse.Data.ShareURL,
+		Status:       statusResponse.Data.Status,
 		AccountID:    accountID,
 		AccountTitle: "",
 	}, nil
