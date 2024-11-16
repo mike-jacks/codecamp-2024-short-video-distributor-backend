@@ -175,6 +175,11 @@ func (s *TikTokService) ExchangeAndSaveToken(ctx context.Context, code string, u
 	// Set required headers
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Cache-Control", "no-cache")
+	req.Header.Set("Authorization", fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(s.clientID+":"+s.clientSecret))))
+
+	// Add debug logging
+	log.Printf("Token exchange request headers: %v", req.Header)
+	log.Printf("Token exchange request body: %s", data.Encode())
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -182,6 +187,11 @@ func (s *TikTokService) ExchangeAndSaveToken(ctx context.Context, code string, u
 		return nil, fmt.Errorf("failed to exchange code: %w", err)
 	}
 	defer resp.Body.Close()
+
+	// Add debug logging for response
+	respBody, _ := io.ReadAll(resp.Body)
+	log.Printf("Token exchange response: %s", string(respBody))
+	resp.Body = io.NopCloser(bytes.NewBuffer(respBody))
 
 	var tokenResponse struct {
 		Data struct {
