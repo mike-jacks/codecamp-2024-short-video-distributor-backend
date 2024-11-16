@@ -9,3 +9,7 @@ type YouTubeChannelDetails struct {
 	// Foreign key to PlatformCredentials
 	PlatformCredentials PlatformCredentials `gorm:"foreignKey:CredentialsID;references:ID"`
 }
+
+func (YouTubeChannelDetails) TableName() string {
+	return "youtube_channel_details"
+}
