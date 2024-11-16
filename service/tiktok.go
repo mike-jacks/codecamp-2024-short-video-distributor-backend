@@ -157,6 +157,7 @@ func (s *TikTokService) ExchangeAndSaveToken(ctx context.Context, code string, u
 		"client_secret": {s.clientSecret},
 		"code":          {code},
 		"grant_type":    {"authorization_code"},
+		"code_verifier": {s.codeVerifier},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to exchange code: %w", err)
