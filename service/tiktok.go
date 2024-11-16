@@ -258,14 +258,13 @@ func (s *TikTokService) ExchangeAndSaveToken(ctx context.Context, code string, u
 }
 
 func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountID string, title string, description string, file graphql.Upload, privacyStatus *string, accessToken string, refreshToken string, tokenExpiresAt time.Time) (*model.VideoDistribution, error) {
-	// First, upload the video file
 	uploadURL := "https://open.tiktokapis.com/v2/video/upload/"
 
 	// Create multipart form
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
-	// Add video file
+	// Add video file first
 	part, err := writer.CreateFormFile("video", file.Filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create form file: %w", err)
@@ -276,21 +275,31 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 		return nil, fmt.Errorf("failed to copy file: %w", err)
 	}
 
-	// Add other fields
-	writer.WriteField("access_token", accessToken)
-	writer.WriteField("open_id", accountID)
-	writer.WriteField("title", title)
-	writer.WriteField("description", description)
+	err = writer.Close()
+	if err != nil {
+		return nil, fmt.Errorf("failed to close writer: %w", err)
+	}
 
-	writer.Close()
-
-	// Make request
+	// Create request
 	req, err := http.NewRequest("POST", uploadURL, body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
+	// Set headers
 	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+
+	// Add query parameters
+	q := req.URL.Query()
+	q.Add("open_id", accountID)
+	q.Add("title", title)
+	q.Add("description", description)
+	req.URL.RawQuery = q.Encode()
+
+	// Add debug logging
+	log.Printf("Upload request URL: %s", req.URL.String())
+	log.Printf("Upload request headers: %v", req.Header)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -298,6 +307,16 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 		return nil, fmt.Errorf("failed to upload video: %w", err)
 	}
 	defer resp.Body.Close()
+
+	// Debug response
+	respBody, _ := io.ReadAll(resp.Body)
+	log.Printf("Upload response: %s", string(respBody))
+	resp.Body = io.NopCloser(bytes.NewBuffer(respBody))
+
+	// Check response status
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("upload failed with status %d: %s", resp.StatusCode, string(respBody))
+	}
 
 	var uploadResponse struct {
 		Data struct {
@@ -307,10 +326,20 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 				ShareURL string `json:"share_url"`
 			} `json:"share"`
 		} `json:"data"`
+		Error struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+			LogID   string `json:"log_id"`
+		} `json:"error"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&uploadResponse); err != nil {
-		return nil, fmt.Errorf("failed to decode upload response: %w", err)
+		return nil, fmt.Errorf("failed to decode upload response: %w, response body: %s", err, string(respBody))
+	}
+
+	// Check for API errors
+	if uploadResponse.Error.Code != "" && uploadResponse.Error.Code != "ok" {
+		return nil, fmt.Errorf("TikTok API error: %s - %s", uploadResponse.Error.Code, uploadResponse.Error.Message)
 	}
 
 	return &model.VideoDistribution{
