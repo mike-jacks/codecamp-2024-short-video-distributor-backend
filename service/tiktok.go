@@ -415,6 +415,10 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 	
 	// Step 3: Publish the video
 	publishURL := "https://open.tiktokapis.com/v2/post/publish/inbox/video/publish/"
+	
+	// Debug video ID from init response
+	log.Printf("Video ID from init response: %s", initResponse.Data.VideoID)
+	
 	publishPayload := struct {
 		VideoID     string `json:"video_id"`
 		Title       string `json:"title"`
@@ -427,11 +431,16 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 
 	publishBytes, err := json.Marshal(publishPayload)
 	if err != nil {
+		log.Printf("Failed to marshal publish payload: %v", err)
 		return nil, fmt.Errorf("failed to marshal publish payload: %w", err)
 	}
 
+	// Debug publish payload
+	log.Printf("Publish payload: %s", string(publishBytes))
+
 	publishReq, err := http.NewRequest("POST", publishURL, bytes.NewBuffer(publishBytes))
 	if err != nil {
+		log.Printf("Failed to create publish request: %v", err)
 		return nil, fmt.Errorf("failed to create publish request: %w", err)
 	}
 
@@ -443,12 +452,36 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 	q.Add("open_id", accountID)
 	publishReq.URL.RawQuery = q.Encode()
 
+	// Debug publish request
+	log.Printf("Publish Request Details:")
+	log.Printf("- Method: %s", publishReq.Method)
+	log.Printf("- URL: %s", publishReq.URL.String())
+	log.Printf("- Headers: %v", publishReq.Header)
+	log.Printf("- Body: %s", string(publishBytes))
+
 	log.Printf("Sending publish request...")
 	publishResp, err := client.Do(publishReq)
 	if err != nil {
+		log.Printf("Publish request failed: %v", err)
 		return nil, fmt.Errorf("failed to publish video: %w", err)
 	}
 	defer publishResp.Body.Close()
+
+	// Read and log publish response
+	publishRespBody, err := io.ReadAll(publishResp.Body)
+	if err != nil {
+		log.Printf("Failed to read publish response body: %v", err)
+		return nil, fmt.Errorf("failed to read publish response: %w", err)
+	}
+	
+	log.Printf("Publish Response Details:")
+	log.Printf("- Status Code: %d", publishResp.StatusCode)
+	log.Printf("- Status: %s", publishResp.Status)
+	log.Printf("- Headers: %v", publishResp.Header)
+	log.Printf("- Body: %s", string(publishRespBody))
+
+	// Create new reader for JSON decoding
+	publishResp.Body = io.NopCloser(bytes.NewBuffer(publishRespBody))
 
 	var publishResponse struct {
 		Data struct {
@@ -462,10 +495,14 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 	}
 
 	if err := json.NewDecoder(publishResp.Body).Decode(&publishResponse); err != nil {
+		log.Printf("Failed to decode publish response: %v", err)
 		return nil, fmt.Errorf("failed to decode publish response: %w", err)
 	}
 
+	log.Printf("Decoded publish response: %+v", publishResponse)
+
 	if publishResponse.Error.Code != "" && publishResponse.Error.Code != "ok" {
+		log.Printf("TikTok API publish error: %s - %s", publishResponse.Error.Code, publishResponse.Error.Message)
 		return nil, fmt.Errorf("TikTok API publish error: %s - %s", publishResponse.Error.Code, publishResponse.Error.Message)
 	}
 
