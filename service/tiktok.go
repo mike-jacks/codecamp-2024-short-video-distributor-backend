@@ -338,6 +338,8 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 		return nil, fmt.Errorf("TikTok API init error: %s - %s", initResponse.Error.Code, initResponse.Error.Message)
 	}
 
+	fmt.Println("\n\ninitResponse: ", initResponse)
+
 	// Step 2: Upload video to the provided URL
 	uploadReq, err := http.NewRequest("POST", initResponse.Data.UploadURL, bytes.NewReader(fileBytes))
 	if err != nil {
