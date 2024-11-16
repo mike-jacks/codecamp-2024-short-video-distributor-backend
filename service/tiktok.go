@@ -296,7 +296,7 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 	payload := InitPayload{
 		PostInfo: PostInfo{
 			Title:                title,
-			PrivacyLevel:         "PUBLIC",
+			PrivacyLevel:         "PUBLIC_TO_EVERYONE",
 			DisableDuet:         false,
 			DisableComment:      false,
 			DisableStitch:       false,
@@ -308,6 +308,18 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 			ChunkSize:       fileSize,
 			TotalChunkCount: 1,
 		},
+	}
+
+	// Add privacy level handling if provided
+	if privacyStatus != nil {
+		switch *privacyStatus {
+		case "PUBLIC":
+			payload.PostInfo.PrivacyLevel = "PUBLIC_TO_EVERYONE"
+		case "PRIVATE":
+			payload.PostInfo.PrivacyLevel = "SELF_ONLY"
+		case "FOLLOWERS":
+			payload.PostInfo.PrivacyLevel = "MUTUAL_FOLLOW_FRIENDS"
+		}
 	}
 
 	// Debug logging before marshaling
