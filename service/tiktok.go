@@ -410,11 +410,70 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 		return nil, fmt.Errorf("failed to decode status response: %w", err)
 	}
 
+	// After successful upload (201 status)
+	log.Printf("Upload successful, proceeding to publish...")
+	
+	// Step 3: Publish the video
+	publishURL := "https://open.tiktokapis.com/v2/post/publish/inbox/video/publish/"
+	publishPayload := struct {
+		VideoID     string `json:"video_id"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+	}{
+		VideoID:     initResponse.Data.VideoID,
+		Title:       title,
+		Description: description,
+	}
+
+	publishBytes, err := json.Marshal(publishPayload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal publish payload: %w", err)
+	}
+
+	publishReq, err := http.NewRequest("POST", publishURL, bytes.NewBuffer(publishBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create publish request: %w", err)
+	}
+
+	publishReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	publishReq.Header.Set("Content-Type", "application/json")
+
+	// Add query parameters
+	q = publishReq.URL.Query()
+	q.Add("open_id", accountID)
+	publishReq.URL.RawQuery = q.Encode()
+
+	log.Printf("Sending publish request...")
+	publishResp, err := client.Do(publishReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to publish video: %w", err)
+	}
+	defer publishResp.Body.Close()
+
+	var publishResponse struct {
+		Data struct {
+			PublishID string `json:"publish_id"`
+			ShareURL  string `json:"share_url"`
+		} `json:"data"`
+		Error struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+
+	if err := json.NewDecoder(publishResp.Body).Decode(&publishResponse); err != nil {
+		return nil, fmt.Errorf("failed to decode publish response: %w", err)
+	}
+
+	if publishResponse.Error.Code != "" && publishResponse.Error.Code != "ok" {
+		return nil, fmt.Errorf("TikTok API publish error: %s - %s", publishResponse.Error.Code, publishResponse.Error.Message)
+	}
+
 	return &model.VideoDistribution{
-		ID:           statusResponse.Data.VideoID,
+		ID:           publishResponse.Data.PublishID,
 		Title:        title,
 		Description:  description,
-		URL:          statusResponse.Data.ShareURL,
+		URL:          publishResponse.Data.ShareURL,
 		Status:       string(models.Processing),
 		AccountID:    accountID,
 		AccountTitle: "",
