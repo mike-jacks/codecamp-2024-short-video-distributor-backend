@@ -42,6 +42,7 @@ extend type Query {
 }
 
 extend type Mutation {
+  generateAuthURL(platformType: PlatformType!, userId: String!): String!
   authorize(platformType: PlatformType!, code: String!, userId: String!): Boolean!
   revokeAuth(platformType: PlatformType!, userId: String!): Boolean!
   uploadVideo(

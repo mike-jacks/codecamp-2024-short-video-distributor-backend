@@ -17,6 +17,20 @@ func (r *mutationResolver) Empty(ctx context.Context) (*string, error) {
 	panic(fmt.Errorf("not implemented: Empty - _empty"))
 }
 
+// GenerateAuthURL is the resolver for the generateAuthURL field.
+func (r *mutationResolver) GenerateAuthURL(ctx context.Context, platformType model.PlatformType, userID string) (string, error) {
+	switch platformType {
+	case model.PlatformTypeYoutube:
+		return r.YoutubeService.GetAuthURL(userID)
+	case model.PlatformTypeTiktok:
+		return "", fmt.Errorf("TikTok not implemented yet")
+	case model.PlatformTypeInstagram:
+		return "", fmt.Errorf("instagram not implemented yet")
+	default:
+		return "", fmt.Errorf("unsupported platform type: %s", platformType)
+	}
+}
+
 // Authorize is the resolver for the authorize field.
 func (r *mutationResolver) Authorize(ctx context.Context, platformType model.PlatformType, code string, userID string) (bool, error) {
 	switch platformType {
