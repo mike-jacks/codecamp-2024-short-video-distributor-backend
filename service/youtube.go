@@ -222,13 +222,13 @@ func (s *YouTubeService) GetActiveCredentials(ctx context.Context, userID string
 	return result, nil
 }
 
-func (s *YouTubeService) UploadVideo(ctx context.Context, userID string, channelId string, title string, description string, file graphql.Upload, privacyStatus *string) (*model.Video, error) {
+func (s *YouTubeService) UploadVideo(ctx context.Context, userID string, channelId string, title string, description string, file graphql.Upload, privacyStatus *string, accessToken string, refreshToken string, tokenExpiresAt time.Time) (*model.VideoDistribution, error) {
 	if privacyStatus == nil {
 		// Default to private if no privacy status is provided
 		private := "private"
 		privacyStatus = &private
 	}
-	youtubeService, err := s.getYoutubeClient(ctx, userID, channelId)
+	youtubeService, err := s.getYoutubeClient(ctx, accessToken, refreshToken, tokenExpiresAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get YouTube client: %w", err)
 	}
@@ -254,36 +254,23 @@ func (s *YouTubeService) UploadVideo(ctx context.Context, userID string, channel
 		return nil, fmt.Errorf("failed to upload video: %w", err)
 	}
 
-	return &model.Video{
+	return &model.VideoDistribution{
 		ID:           response.Id,
 		Title:        response.Snippet.Title,
 		Description:  response.Snippet.Description,
 		URL:          fmt.Sprintf("https://www.youtube.com/watch?v=%s", response.Id),
-		Status:       response.Status.PrivacyStatus,
+		Status:       response.Status.UploadStatus,
 		AccountID:    response.Snippet.ChannelId,
 		AccountTitle: response.Snippet.ChannelTitle,
 	}, nil
 }
 
-func (s *YouTubeService) getYoutubeClient(ctx context.Context, userID string, channelId string) (*youtube.Service, error) {
-	// Get active credentials for the user and channel
-	var platformCredentials models.PlatformCredentials
-	err := s.db.Where("platform_credentials.account_id = ? AND platform_credentials.user_id = ? AND platform_credentials.is_active = ?",
-		channelId, userID, true).
-		First(&platformCredentials).Error
-
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("no active credentials found for channel %s", channelId)
-		}
-		return nil, fmt.Errorf("failed to get active credentials: %w", err)
-	}
-
+func (s *YouTubeService) getYoutubeClient(ctx context.Context, accessToken string, refreshToken string, tokenExpiresAt time.Time) (*youtube.Service, error) {
 	// CreateOAuth2 token from stored credentials
 	token := &oauth2.Token{
-		AccessToken:  platformCredentials.AccessToken,
-		RefreshToken: platformCredentials.RefreshToken,
-		Expiry:       platformCredentials.TokenExpiresAt,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		Expiry:       tokenExpiresAt,
 	}
 
 	// Create YouTube client

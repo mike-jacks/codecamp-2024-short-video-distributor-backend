@@ -9,7 +9,7 @@ type YoutubeChannel {
   title: String!
 }
 
-type Video {
+type VideoDistribution {
   id: String!
   title: String!
   description: String!
@@ -46,13 +46,15 @@ extend type Mutation {
   generateAuthURL(platformType: PlatformType!, userId: String!): String!
   authorize(platformType: PlatformType!, code: String!, userId: String!): Boolean!
   revokeAuth(platformType: PlatformType!, userId: String!): Boolean!
-  uploadVideo(
-    platformType: PlatformType!
-    channelId: String!
-    title: String!
-    description: String!
-    file: Upload!
-    privacyStatus: String
-    userId: String!
-  ): Video!
+  uploadVideos(title: String!, description: String!, file: Upload!, uploadVideoInput: [UploadVideoInput!]!): [VideoDistribution!]!
+}
+
+input UploadVideoInput {
+  platformType: PlatformType!
+  accountId: String!
+  privacyStatus: String
+  userId: String!
+  accessToken: String!
+  refreshToken: String!
+  tokenExpiresAt: DateTime!
 }

@@ -27,7 +27,17 @@ type PlatformCredentials struct {
 type Query struct {
 }
 
-type Video struct {
+type UploadVideoInput struct {
+	PlatformType   PlatformType `json:"platformType"`
+	AccountID      string       `json:"accountId"`
+	PrivacyStatus  *string      `json:"privacyStatus,omitempty"`
+	UserID         string       `json:"userId"`
+	AccessToken    string       `json:"accessToken"`
+	RefreshToken   string       `json:"refreshToken"`
+	TokenExpiresAt time.Time    `json:"tokenExpiresAt"`
+}
+
+type VideoDistribution struct {
 	ID           string `json:"id"`
 	Title        string `json:"title"`
 	Description  string `json:"description"`

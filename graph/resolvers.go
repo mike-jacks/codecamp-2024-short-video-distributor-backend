@@ -62,18 +62,45 @@ func (r *mutationResolver) RevokeAuth(ctx context.Context, platformType model.Pl
 	}
 }
 
-// UploadVideo is the resolver for the uploadVideo field.
-func (r *mutationResolver) UploadVideo(ctx context.Context, platformType model.PlatformType, channelID string, title string, description string, file graphql.Upload, privacyStatus *string, userID string) (*model.Video, error) {
-	switch platformType {
-	case model.PlatformTypeYoutube:
-		return r.YoutubeService.UploadVideo(ctx, userID, channelID, title, description, file, privacyStatus)
-	case model.PlatformTypeTiktok:
-		return nil, fmt.Errorf("TikTok not implemented yet")
-	case model.PlatformTypeInstagram:
-		return nil, fmt.Errorf("instagram not implemented yet")
-	default:
-		return nil, fmt.Errorf("unsupported platform type: %s", platformType)
+// UploadVideos is the resolver for the uploadVideos field.
+func (r *mutationResolver) UploadVideos(ctx context.Context, title string, description string, file graphql.Upload, uploadVideoInput []*model.UploadVideoInput) ([]*model.VideoDistribution, error) {
+	result := make([]*model.VideoDistribution, len(uploadVideoInput))
+	var err error
+	for i, input := range uploadVideoInput {
+		switch input.PlatformType {
+		case model.PlatformTypeYoutube:
+			result[i], err = r.YoutubeService.UploadVideo(ctx, input.UserID, input.AccountID, title, description, file, input.PrivacyStatus, input.AccessToken, input.RefreshToken, input.TokenExpiresAt)
+			if err != nil {
+				return nil, err
+			}
+
+			tx := r.db.Begin()
+			defer func() {
+				if r := recover(); r != nil {
+					tx.Rollback()
+				}
+			}()
+
+			if err := tx.Create(&models.VideoDistribution{
+				Title:        result[i].Title,
+				Description:  result[i].Description,
+				URL:          result[i].URL,
+				Status:       models.DistributionStatus(result[i].Status),
+				AccountID:    result[i].AccountID,
+				AccountTitle: result[i].AccountTitle,
+			}).Error; err != nil {
+				tx.Rollback()
+				return nil, fmt.Errorf("failed to save video distribution: %w", err)
+			}
+
+			if err := tx.Commit().Error; err != nil {
+				return nil, fmt.Errorf("failed to commit transaction: %w", err)
+			}
+		default:
+			return nil, fmt.Errorf("unsupported platform type: %s", input.PlatformType)
+		}
 	}
+	return result, nil
 }
 
 // Empty is the resolver for the _empty field.
