@@ -67,7 +67,7 @@ type ComplexityRoot struct {
 
 	Query struct {
 		Empty                  func(childComplexity int) int
-		GetAuthURL             func(childComplexity int, platformType model.PlatformType) int
+		GetAuthURL             func(childComplexity int, platformType model.PlatformType, userID string) int
 		GetPlatformCredentials func(childComplexity int, platformType model.PlatformType, userID string) int
 		GetYoutubeChannels     func(childComplexity int, userID string) int
 	}
@@ -96,7 +96,7 @@ type MutationResolver interface {
 }
 type QueryResolver interface {
 	Empty(ctx context.Context) (*string, error)
-	GetAuthURL(ctx context.Context, platformType model.PlatformType) (string, error)
+	GetAuthURL(ctx context.Context, platformType model.PlatformType, userID string) (string, error)
 	GetPlatformCredentials(ctx context.Context, platformType model.PlatformType, userID string) (*model.PlatformCredentials, error)
 	GetYoutubeChannels(ctx context.Context, userID string) ([]*model.YoutubeChannel, error)
 }
@@ -229,7 +229,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.GetAuthURL(childComplexity, args["platformType"].(model.PlatformType)), true
+		return e.complexity.Query.GetAuthURL(childComplexity, args["platformType"].(model.PlatformType), args["userId"].(string)), true
 
 	case "Query.getPlatformCredentials":
 		if e.complexity.Query.GetPlatformCredentials == nil {
@@ -704,6 +704,11 @@ func (ec *executionContext) field_Query_getAuthURL_args(ctx context.Context, raw
 		return nil, err
 	}
 	args["platformType"] = arg0
+	arg1, err := ec.field_Query_getAuthURL_argsUserID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["userId"] = arg1
 	return args, nil
 }
 func (ec *executionContext) field_Query_getAuthURL_argsPlatformType(
@@ -716,6 +721,19 @@ func (ec *executionContext) field_Query_getAuthURL_argsPlatformType(
 	}
 
 	var zeroVal model.PlatformType
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getAuthURL_argsUserID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("userId"))
+	if tmp, ok := rawArgs["userId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
 	return zeroVal, nil
 }
 
@@ -1422,7 +1440,7 @@ func (ec *executionContext) _Query_getAuthURL(ctx context.Context, field graphql
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().GetAuthURL(rctx, fc.Args["platformType"].(model.PlatformType))
+		return ec.resolvers.Query().GetAuthURL(rctx, fc.Args["platformType"].(model.PlatformType), fc.Args["userId"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)

@@ -2,9 +2,13 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
+	"sync"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/mike-jacks/codecamp-2024-short-video-distributor-backend/graph/model"
@@ -16,9 +20,18 @@ import (
 	"gorm.io/gorm"
 )
 
+type AuthSession struct {
+	Token     string
+	UserID    string
+	CreatedAt time.Time
+	Used      bool
+}
+
 type YouTubeService struct {
-	db     *gorm.DB
-	config *oauth2.Config
+	db           *gorm.DB
+	config       *oauth2.Config
+	authSessions map[string]*AuthSession
+	sessionMux   sync.RWMutex
 }
 
 func NewYouTubeService(db *gorm.DB) *YouTubeService {
@@ -47,8 +60,66 @@ func NewYouTubeService(db *gorm.DB) *YouTubeService {
 	return &YouTubeService{db: db, config: config}
 }
 
-func (s *YouTubeService) GetAuthURL() string {
-	return s.config.AuthCodeURL("state", oauth2.AccessTypeOffline)
+func (s *YouTubeService) GetAuthURL(userID string) (string, error) {
+	// Generate a random session token
+	sessionToken := make([]byte, 32)
+	if _, err := rand.Read(sessionToken); err != nil {
+		return "", fmt.Errorf("failed to generate session token: %w", err)
+	}
+	token := hex.EncodeToString(sessionToken)
+
+	// Store the session
+	s.sessionMux.Lock()
+	s.authSessions[token] = &AuthSession{
+		Token:     token,
+		UserID:    userID,
+		CreatedAt: time.Now(),
+		Used:      false,
+	}
+	s.sessionMux.Unlock()
+
+	go s.cleanupOldSessions()
+
+	return s.config.AuthCodeURL(token, oauth2.AccessTypeOffline, oauth2.ApprovalForce), nil
+}
+
+func (s *YouTubeService) cleanupOldSessions() {
+	s.sessionMux.Lock()
+	defer s.sessionMux.Unlock()
+
+	for token, session := range s.authSessions {
+		if time.Since(session.CreatedAt) > 15*time.Minute || session.Used {
+			delete(s.authSessions, token)
+		}
+	}
+}
+
+func (s *YouTubeService) ValidateAndGetUserID(state string) (string, error) {
+	s.sessionMux.Lock()
+	defer s.sessionMux.Unlock()
+
+	session, exists := s.authSessions[state]
+	if !exists {
+		return "", fmt.Errorf("invalid or expired session")
+	}
+
+	if session.Used {
+		return "", fmt.Errorf("session already used")
+	}
+
+	if time.Since(session.CreatedAt) > 15*time.Minute {
+		delete(s.authSessions, state)
+		return "", fmt.Errorf("invalid or expired session")
+	}
+
+	// Mark the session as used
+	session.Used = true
+	userID := session.UserID
+
+	// Clean up the used session
+	delete(s.authSessions, state)
+
+	return userID, nil
 }
 
 func (s *YouTubeService) ExchangeAndSaveToken(ctx context.Context, code string, userID string) (*model.PlatformCredentials, error) {

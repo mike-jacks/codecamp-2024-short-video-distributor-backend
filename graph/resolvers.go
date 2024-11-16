@@ -21,7 +21,7 @@ func (r *mutationResolver) Empty(ctx context.Context) (*string, error) {
 func (r *mutationResolver) Authorize(ctx context.Context, platformType model.PlatformType, code string, userID string) (bool, error) {
 	switch platformType {
 	case model.PlatformTypeYoutube:
-		_, err := r.youtubeService.ExchangeAndSaveToken(ctx, code, userID)
+		_, err := r.YoutubeService.ExchangeAndSaveToken(ctx, code, userID)
 		return err == nil, nil
 	case model.PlatformTypeTiktok:
 		return false, fmt.Errorf("TikTok not implemented yet")
@@ -51,7 +51,7 @@ func (r *mutationResolver) RevokeAuth(ctx context.Context, platformType model.Pl
 func (r *mutationResolver) UploadVideo(ctx context.Context, platformType model.PlatformType, channelID string, title string, description string, file graphql.Upload, privacyStatus *string, userID string) (*model.Video, error) {
 	switch platformType {
 	case model.PlatformTypeYoutube:
-		return r.youtubeService.UploadVideo(ctx, userID, channelID, title, description, file, privacyStatus)
+		return r.YoutubeService.UploadVideo(ctx, userID, channelID, title, description, file, privacyStatus)
 	case model.PlatformTypeTiktok:
 		return nil, fmt.Errorf("TikTok not implemented yet")
 	case model.PlatformTypeInstagram:
@@ -67,10 +67,10 @@ func (r *queryResolver) Empty(ctx context.Context) (*string, error) {
 }
 
 // GetAuthURL is the resolver for the getAuthURL field.
-func (r *queryResolver) GetAuthURL(ctx context.Context, platformType model.PlatformType) (string, error) {
+func (r *queryResolver) GetAuthURL(ctx context.Context, platformType model.PlatformType, userID string) (string, error) {
 	switch platformType {
 	case model.PlatformTypeYoutube:
-		return r.youtubeService.GetAuthURL(), nil
+		return r.YoutubeService.GetAuthURL(userID)
 	case model.PlatformTypeTiktok:
 		return "", fmt.Errorf("TikTok not implemented yet")
 	case model.PlatformTypeInstagram:
@@ -84,10 +84,10 @@ func (r *queryResolver) GetAuthURL(ctx context.Context, platformType model.Platf
 func (r *queryResolver) GetPlatformCredentials(ctx context.Context, platformType model.PlatformType, userID string) (*model.PlatformCredentials, error) {
 	switch platformType {
 	case model.PlatformTypeYoutube:
-		if r.youtubeService == nil {
+		if r.YoutubeService == nil {
 			return nil, fmt.Errorf("youtube service not initialized")
 		}
-		creds, err := r.youtubeService.GetActiveCredentials(ctx, userID)
+		creds, err := r.YoutubeService.GetActiveCredentials(ctx, userID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get YouTube credentials: %w", err)
 		}
@@ -103,7 +103,7 @@ func (r *queryResolver) GetPlatformCredentials(ctx context.Context, platformType
 
 // GetYoutubeChannels is the resolver for the getYoutubeChannels field.
 func (r *queryResolver) GetYoutubeChannels(ctx context.Context, userID string) ([]*model.YoutubeChannel, error) {
-	return r.youtubeService.GetChannels(ctx, userID)
+	return r.YoutubeService.GetChannels(ctx, userID)
 }
 
 // Mutation returns MutationResolver implementation.

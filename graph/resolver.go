@@ -11,7 +11,7 @@ import (
 
 type Resolver struct {
 	db             *gorm.DB
-	youtubeService *service.YouTubeService
+	YoutubeService *service.YouTubeService
 }
 
 func NewResolver(db *gorm.DB) *Resolver {
@@ -26,6 +26,6 @@ func NewResolver(db *gorm.DB) *Resolver {
 
 	return &Resolver{
 		db:             db,
-		youtubeService: youtubeService,
+		YoutubeService: youtubeService,
 	}
 }
