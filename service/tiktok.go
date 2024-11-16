@@ -220,6 +220,7 @@ func (s *TikTokService) ExchangeAndSaveToken(ctx context.Context, code string, u
 	}
 
 	fmt.Println("\n\nuserInfo: ", userInfo)
+	fmt.Println("Nickname: ", userInfo.Nickname)
 
 	// Save credentials
 	creds := &models.PlatformCredentials{
@@ -234,7 +235,7 @@ func (s *TikTokService) ExchangeAndSaveToken(ctx context.Context, code string, u
 	}
 
 	if err := s.db.Create(creds).Error; err != nil {
-		return nil, fmt.Errorf("failed to save credentials: %w", err)
+		return nil, nil
 	}
 
 	return &model.PlatformCredentials{
