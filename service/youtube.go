@@ -214,6 +214,8 @@ func (s *YouTubeService) GetActiveCredentials(ctx context.Context, userID string
 			RefreshToken:   cred.RefreshToken,
 			TokenExpiresAt: cred.TokenExpiresAt,
 			IsActive:       cred.IsActive,
+			AccountID:      cred.AccountID,
+			AccountTitle:   cred.AccountTitle,
 		}
 	}
 
