@@ -113,6 +113,8 @@ func (r *queryResolver) GetPlatformCredentials(ctx context.Context, userID strin
 			RefreshToken:   cred.RefreshToken,
 			TokenExpiresAt: cred.TokenExpiresAt,
 			IsActive:       cred.IsActive,
+			AccountID:      cred.AccountID,
+			AccountTitle:   cred.AccountTitle,
 		}
 	}
 	return result, nil
