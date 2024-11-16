@@ -115,7 +115,6 @@ func handleOAuthCallback(mux *http.ServeMux, resolver *graph.Resolver) {
 		if err != nil {
 			log.Printf("Handling callback failed: %v", err)
 			http.Error(w, "Failed to handle callback", http.StatusInternalServerError)
-			return
 		}
 
 		frontendURL := os.Getenv("FRONTEND_URL")

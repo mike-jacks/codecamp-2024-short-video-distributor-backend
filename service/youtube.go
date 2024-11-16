@@ -159,7 +159,7 @@ func (s *YouTubeService) ExchangeAndSaveToken(ctx context.Context, code string, 
 	err = s.db.Where("channel_id = ?", channel.Id).First(&existingChannel).Error
 	if err == nil {
 		// Channel already exists, return error
-		return nil, fmt.Errorf("channel %s is already connected to an account", channel.Snippet.Title)
+		return nil, nil
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		// Unexpected error
 		return nil, fmt.Errorf("error checking for existing channel: %w", err)
