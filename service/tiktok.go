@@ -356,7 +356,7 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 	}
 
 	// Set and log headers
-	uploadReq.Header.Set("Content-Type", "video/mp4")
+	uploadReq.Header.Set("Content-Type", "video/mov")
 	uploadReq.Header.Set("Content-Range", fmt.Sprintf("bytes 0-%d/%d", fileSize-1, fileSize))
 	uploadReq.Header.Set("Content-Length", fmt.Sprintf("%d", fileSize))
 
