@@ -6,6 +6,7 @@ require (
 	github.com/99designs/gqlgen v0.17.56
 	github.com/joho/godotenv v1.5.1
 	github.com/nrednav/cuid2 v1.0.1
+	github.com/rs/cors v1.11.1
 	github.com/vektah/gqlparser/v2 v2.5.19
 	golang.org/x/oauth2 v0.24.0
 	google.golang.org/api v0.206.0

@@ -4,12 +4,19 @@ enum AuthURL {
   INSTAGRAM
 }
 
+type YoutubeChannel {
+  id: String!
+  title: String!
+}
+
 type Video {
   id: String!
   title: String!
   description: String!
   url: String!
   status: String!
+  channelId: String!
+  channelTitle: String!
 }
 
 enum PlatformType {
@@ -30,11 +37,12 @@ type PlatformCredentials {
 
 extend type Query {
   getAuthURL(platformType: PlatformType!): String!
-  getPlatformCredentials(platformType: PlatformType!): PlatformCredentials!
+  getPlatformCredentials(platformType: PlatformType!, userId: String!): PlatformCredentials!
+  getYoutubeChannels(userId: String!): [YoutubeChannel!]!
 }
 
 extend type Mutation {
-  authorize(platformType: PlatformType!, code: String!): Boolean!
-  revokeAuth(platformType: PlatformType!): Boolean!
-  uploadVideo(platformType: PlatformType!, file: Upload!, title: String!, description: String!): Video!
+  authorize(platformType: PlatformType!, code: String!, userId: String!): Boolean!
+  revokeAuth(platformType: PlatformType!, userId: String!): Boolean!
+  uploadVideo(platformType: PlatformType!, channelId: String!, title: String!, description: String!, file: Upload!, privacyStatus: String, userId: String!): Video!
 }

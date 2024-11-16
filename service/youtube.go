@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/mike-jacks/codecamp-2024-short-video-distributor-backend/graph/model"
 	"github.com/mike-jacks/codecamp-2024-short-video-distributor-backend/internal/models"
 	"golang.org/x/oauth2"
@@ -64,6 +65,7 @@ func (s *YouTubeService) ExchangeAndSaveToken(ctx context.Context, code string, 
 		return nil, fmt.Errorf("failed to create YouTube service: %w", err)
 	}
 
+	// Verify the token by making a test API call
 	_, err = youtubeService.Channels.List([]string{"snippet"}).Mine(true).Do()
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify token: %w", err)
@@ -124,4 +126,97 @@ func (s *YouTubeService) GetActiveCredentials(ctx context.Context, userID string
 		TokenExpiresAt: creds.TokenExpiresAt,
 		IsActive:       creds.IsActive,
 	}, nil
+}
+
+func (s *YouTubeService) UploadVideo(ctx context.Context, userID string, channelId string, title string, description string, file graphql.Upload, privacyStatus *string) (*model.Video, error) {
+	if privacyStatus == nil {
+		// Default to private if no privacy status is provided
+		private := "private"
+		privacyStatus = &private
+	}
+	youtubeService, err := s.getYoutubeClient(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get YouTube client: %w", err)
+	}
+
+	// Create the video object
+	video := &youtube.Video{
+		Snippet: &youtube.VideoSnippet{
+			Title:       title,
+			Description: description,
+			ChannelId:   channelId,
+		},
+		Status: &youtube.VideoStatus{
+			PrivacyStatus:           *privacyStatus,
+			SelfDeclaredMadeForKids: false,
+		},
+	}
+
+	call := youtubeService.Videos.Insert([]string{"snippet", "status"}, video)
+	call.Media(file.File)
+
+	response, err := call.Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload video: %w", err)
+	}
+
+	return &model.Video{
+		ID:           response.Id,
+		Title:        response.Snippet.Title,
+		Description:  response.Snippet.Description,
+		URL:          fmt.Sprintf("https://www.youtube.com/watch?v=%s", response.Id),
+		Status:       response.Status.PrivacyStatus,
+		ChannelID:    response.Snippet.ChannelId,
+		ChannelTitle: response.Snippet.ChannelTitle,
+	}, nil
+}
+
+func (s *YouTubeService) GetChannels(ctx context.Context, userID string) ([]*model.YoutubeChannel, error) {
+	youtubeService, err := s.getYoutubeClient(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get YouTube client: %w", err)
+	}
+
+	// Get the user's channels
+	channelResponse, err := youtubeService.Channels.List([]string{"snippet"}).Mine(true).Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get channels: %w", err)
+	}
+
+	// Convert the response to the model
+	channels := make([]*model.YoutubeChannel, len(channelResponse.Items))
+	for i, channel := range channelResponse.Items {
+		channels[i] = &model.YoutubeChannel{
+			ID:    channel.Id,
+			Title: channel.Snippet.Title,
+		}
+	}
+
+	return channels, nil
+}
+
+func (s *YouTubeService) getYoutubeClient(ctx context.Context, userID string) (*youtube.Service, error) {
+	// Get active credentials for the user
+	creds, err := s.GetActiveCredentials(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active credentials: %w", err)
+	}
+	if creds == nil {
+		return nil, fmt.Errorf("no active credentials found")
+	}
+
+	// CreateOAuth2 token from stored credentials
+	token := &oauth2.Token{
+		AccessToken:  creds.AccessToken,
+		RefreshToken: creds.RefreshToken,
+		Expiry:       creds.TokenExpiresAt,
+	}
+
+	// Create YouTube client
+	client := s.config.Client(ctx, token)
+	youtubeService, err := youtube.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create YouTube service: %w", err)
+	}
+	return youtubeService, nil
 }

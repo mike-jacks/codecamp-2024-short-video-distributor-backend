@@ -26,11 +26,18 @@ type Query struct {
 }
 
 type Video struct {
-	ID          string `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	URL         string `json:"url"`
-	Status      string `json:"status"`
+	ID           string `json:"id"`
+	Title        string `json:"title"`
+	Description  string `json:"description"`
+	URL          string `json:"url"`
+	Status       string `json:"status"`
+	ChannelID    string `json:"channelId"`
+	ChannelTitle string `json:"channelTitle"`
+}
+
+type YoutubeChannel struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
 }
 
 type AuthURL string

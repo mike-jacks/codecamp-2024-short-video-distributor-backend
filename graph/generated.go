@@ -49,10 +49,10 @@ type DirectiveRoot struct {
 
 type ComplexityRoot struct {
 	Mutation struct {
-		Authorize   func(childComplexity int, platformType model.PlatformType, code string) int
+		Authorize   func(childComplexity int, platformType model.PlatformType, code string, userID string) int
 		Empty       func(childComplexity int) int
-		RevokeAuth  func(childComplexity int, platformType model.PlatformType) int
-		UploadVideo func(childComplexity int, platformType model.PlatformType, file graphql.Upload, title string, description string) int
+		RevokeAuth  func(childComplexity int, platformType model.PlatformType, userID string) int
+		UploadVideo func(childComplexity int, platformType model.PlatformType, channelID string, title string, description string, file graphql.Upload, privacyStatus *string, userID string) int
 	}
 
 	PlatformCredentials struct {
@@ -68,28 +68,37 @@ type ComplexityRoot struct {
 	Query struct {
 		Empty                  func(childComplexity int) int
 		GetAuthURL             func(childComplexity int, platformType model.PlatformType) int
-		GetPlatformCredentials func(childComplexity int, platformType model.PlatformType) int
+		GetPlatformCredentials func(childComplexity int, platformType model.PlatformType, userID string) int
+		GetYoutubeChannels     func(childComplexity int, userID string) int
 	}
 
 	Video struct {
-		Description func(childComplexity int) int
-		ID          func(childComplexity int) int
-		Status      func(childComplexity int) int
-		Title       func(childComplexity int) int
-		URL         func(childComplexity int) int
+		ChannelID    func(childComplexity int) int
+		ChannelTitle func(childComplexity int) int
+		Description  func(childComplexity int) int
+		ID           func(childComplexity int) int
+		Status       func(childComplexity int) int
+		Title        func(childComplexity int) int
+		URL          func(childComplexity int) int
+	}
+
+	YoutubeChannel struct {
+		ID    func(childComplexity int) int
+		Title func(childComplexity int) int
 	}
 }
 
 type MutationResolver interface {
 	Empty(ctx context.Context) (*string, error)
-	Authorize(ctx context.Context, platformType model.PlatformType, code string) (bool, error)
-	RevokeAuth(ctx context.Context, platformType model.PlatformType) (bool, error)
-	UploadVideo(ctx context.Context, platformType model.PlatformType, file graphql.Upload, title string, description string) (*model.Video, error)
+	Authorize(ctx context.Context, platformType model.PlatformType, code string, userID string) (bool, error)
+	RevokeAuth(ctx context.Context, platformType model.PlatformType, userID string) (bool, error)
+	UploadVideo(ctx context.Context, platformType model.PlatformType, channelID string, title string, description string, file graphql.Upload, privacyStatus *string, userID string) (*model.Video, error)
 }
 type QueryResolver interface {
 	Empty(ctx context.Context) (*string, error)
 	GetAuthURL(ctx context.Context, platformType model.PlatformType) (string, error)
-	GetPlatformCredentials(ctx context.Context, platformType model.PlatformType) (*model.PlatformCredentials, error)
+	GetPlatformCredentials(ctx context.Context, platformType model.PlatformType, userID string) (*model.PlatformCredentials, error)
+	GetYoutubeChannels(ctx context.Context, userID string) ([]*model.YoutubeChannel, error)
 }
 
 type executableSchema struct {
@@ -121,7 +130,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.Authorize(childComplexity, args["platformType"].(model.PlatformType), args["code"].(string)), true
+		return e.complexity.Mutation.Authorize(childComplexity, args["platformType"].(model.PlatformType), args["code"].(string), args["userId"].(string)), true
 
 	case "Mutation._empty":
 		if e.complexity.Mutation.Empty == nil {
@@ -140,7 +149,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.RevokeAuth(childComplexity, args["platformType"].(model.PlatformType)), true
+		return e.complexity.Mutation.RevokeAuth(childComplexity, args["platformType"].(model.PlatformType), args["userId"].(string)), true
 
 	case "Mutation.uploadVideo":
 		if e.complexity.Mutation.UploadVideo == nil {
@@ -152,7 +161,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UploadVideo(childComplexity, args["platformType"].(model.PlatformType), args["file"].(graphql.Upload), args["title"].(string), args["description"].(string)), true
+		return e.complexity.Mutation.UploadVideo(childComplexity, args["platformType"].(model.PlatformType), args["channelId"].(string), args["title"].(string), args["description"].(string), args["file"].(graphql.Upload), args["privacyStatus"].(*string), args["userId"].(string)), true
 
 	case "PlatformCredentials.accessToken":
 		if e.complexity.PlatformCredentials.AccessToken == nil {
@@ -232,7 +241,33 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.GetPlatformCredentials(childComplexity, args["platformType"].(model.PlatformType)), true
+		return e.complexity.Query.GetPlatformCredentials(childComplexity, args["platformType"].(model.PlatformType), args["userId"].(string)), true
+
+	case "Query.getYoutubeChannels":
+		if e.complexity.Query.GetYoutubeChannels == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getYoutubeChannels_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetYoutubeChannels(childComplexity, args["userId"].(string)), true
+
+	case "Video.channelId":
+		if e.complexity.Video.ChannelID == nil {
+			break
+		}
+
+		return e.complexity.Video.ChannelID(childComplexity), true
+
+	case "Video.channelTitle":
+		if e.complexity.Video.ChannelTitle == nil {
+			break
+		}
+
+		return e.complexity.Video.ChannelTitle(childComplexity), true
 
 	case "Video.description":
 		if e.complexity.Video.Description == nil {
@@ -268,6 +303,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Video.URL(childComplexity), true
+
+	case "YoutubeChannel.id":
+		if e.complexity.YoutubeChannel.ID == nil {
+			break
+		}
+
+		return e.complexity.YoutubeChannel.ID(childComplexity), true
+
+	case "YoutubeChannel.title":
+		if e.complexity.YoutubeChannel.Title == nil {
+			break
+		}
+
+		return e.complexity.YoutubeChannel.Title(childComplexity), true
 
 	}
 	return 0, false
@@ -406,6 +455,11 @@ func (ec *executionContext) field_Mutation_authorize_args(ctx context.Context, r
 		return nil, err
 	}
 	args["code"] = arg1
+	arg2, err := ec.field_Mutation_authorize_argsUserID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["userId"] = arg2
 	return args, nil
 }
 func (ec *executionContext) field_Mutation_authorize_argsPlatformType(
@@ -434,6 +488,19 @@ func (ec *executionContext) field_Mutation_authorize_argsCode(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_authorize_argsUserID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("userId"))
+	if tmp, ok := rawArgs["userId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_revokeAuth_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -442,6 +509,11 @@ func (ec *executionContext) field_Mutation_revokeAuth_args(ctx context.Context, 
 		return nil, err
 	}
 	args["platformType"] = arg0
+	arg1, err := ec.field_Mutation_revokeAuth_argsUserID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["userId"] = arg1
 	return args, nil
 }
 func (ec *executionContext) field_Mutation_revokeAuth_argsPlatformType(
@@ -457,6 +529,19 @@ func (ec *executionContext) field_Mutation_revokeAuth_argsPlatformType(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_revokeAuth_argsUserID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("userId"))
+	if tmp, ok := rawArgs["userId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_uploadVideo_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -465,11 +550,11 @@ func (ec *executionContext) field_Mutation_uploadVideo_args(ctx context.Context,
 		return nil, err
 	}
 	args["platformType"] = arg0
-	arg1, err := ec.field_Mutation_uploadVideo_argsFile(ctx, rawArgs)
+	arg1, err := ec.field_Mutation_uploadVideo_argsChannelID(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["file"] = arg1
+	args["channelId"] = arg1
 	arg2, err := ec.field_Mutation_uploadVideo_argsTitle(ctx, rawArgs)
 	if err != nil {
 		return nil, err
@@ -480,6 +565,21 @@ func (ec *executionContext) field_Mutation_uploadVideo_args(ctx context.Context,
 		return nil, err
 	}
 	args["description"] = arg3
+	arg4, err := ec.field_Mutation_uploadVideo_argsFile(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["file"] = arg4
+	arg5, err := ec.field_Mutation_uploadVideo_argsPrivacyStatus(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["privacyStatus"] = arg5
+	arg6, err := ec.field_Mutation_uploadVideo_argsUserID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["userId"] = arg6
 	return args, nil
 }
 func (ec *executionContext) field_Mutation_uploadVideo_argsPlatformType(
@@ -495,16 +595,16 @@ func (ec *executionContext) field_Mutation_uploadVideo_argsPlatformType(
 	return zeroVal, nil
 }
 
-func (ec *executionContext) field_Mutation_uploadVideo_argsFile(
+func (ec *executionContext) field_Mutation_uploadVideo_argsChannelID(
 	ctx context.Context,
 	rawArgs map[string]interface{},
-) (graphql.Upload, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("file"))
-	if tmp, ok := rawArgs["file"]; ok {
-		return ec.unmarshalNUpload2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, tmp)
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("channelId"))
+	if tmp, ok := rawArgs["channelId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
 	}
 
-	var zeroVal graphql.Upload
+	var zeroVal string
 	return zeroVal, nil
 }
 
@@ -527,6 +627,45 @@ func (ec *executionContext) field_Mutation_uploadVideo_argsDescription(
 ) (string, error) {
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
 	if tmp, ok := rawArgs["description"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_uploadVideo_argsFile(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (graphql.Upload, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("file"))
+	if tmp, ok := rawArgs["file"]; ok {
+		return ec.unmarshalNUpload2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, tmp)
+	}
+
+	var zeroVal graphql.Upload
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_uploadVideo_argsPrivacyStatus(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("privacyStatus"))
+	if tmp, ok := rawArgs["privacyStatus"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_uploadVideo_argsUserID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("userId"))
+	if tmp, ok := rawArgs["userId"]; ok {
 		return ec.unmarshalNString2string(ctx, tmp)
 	}
 
@@ -588,6 +727,11 @@ func (ec *executionContext) field_Query_getPlatformCredentials_args(ctx context.
 		return nil, err
 	}
 	args["platformType"] = arg0
+	arg1, err := ec.field_Query_getPlatformCredentials_argsUserID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["userId"] = arg1
 	return args, nil
 }
 func (ec *executionContext) field_Query_getPlatformCredentials_argsPlatformType(
@@ -600,6 +744,42 @@ func (ec *executionContext) field_Query_getPlatformCredentials_argsPlatformType(
 	}
 
 	var zeroVal model.PlatformType
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getPlatformCredentials_argsUserID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("userId"))
+	if tmp, ok := rawArgs["userId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getYoutubeChannels_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Query_getYoutubeChannels_argsUserID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["userId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_getYoutubeChannels_argsUserID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("userId"))
+	if tmp, ok := rawArgs["userId"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
 	return zeroVal, nil
 }
 
@@ -712,7 +892,7 @@ func (ec *executionContext) _Mutation_authorize(ctx context.Context, field graph
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().Authorize(rctx, fc.Args["platformType"].(model.PlatformType), fc.Args["code"].(string))
+		return ec.resolvers.Mutation().Authorize(rctx, fc.Args["platformType"].(model.PlatformType), fc.Args["code"].(string), fc.Args["userId"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -767,7 +947,7 @@ func (ec *executionContext) _Mutation_revokeAuth(ctx context.Context, field grap
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().RevokeAuth(rctx, fc.Args["platformType"].(model.PlatformType))
+		return ec.resolvers.Mutation().RevokeAuth(rctx, fc.Args["platformType"].(model.PlatformType), fc.Args["userId"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -822,7 +1002,7 @@ func (ec *executionContext) _Mutation_uploadVideo(ctx context.Context, field gra
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().UploadVideo(rctx, fc.Args["platformType"].(model.PlatformType), fc.Args["file"].(graphql.Upload), fc.Args["title"].(string), fc.Args["description"].(string))
+		return ec.resolvers.Mutation().UploadVideo(rctx, fc.Args["platformType"].(model.PlatformType), fc.Args["channelId"].(string), fc.Args["title"].(string), fc.Args["description"].(string), fc.Args["file"].(graphql.Upload), fc.Args["privacyStatus"].(*string), fc.Args["userId"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -857,6 +1037,10 @@ func (ec *executionContext) fieldContext_Mutation_uploadVideo(ctx context.Contex
 				return ec.fieldContext_Video_url(ctx, field)
 			case "status":
 				return ec.fieldContext_Video_status(ctx, field)
+			case "channelId":
+				return ec.fieldContext_Video_channelId(ctx, field)
+			case "channelTitle":
+				return ec.fieldContext_Video_channelTitle(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Video", field.Name)
 		},
@@ -1293,7 +1477,7 @@ func (ec *executionContext) _Query_getPlatformCredentials(ctx context.Context, f
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().GetPlatformCredentials(rctx, fc.Args["platformType"].(model.PlatformType))
+		return ec.resolvers.Query().GetPlatformCredentials(rctx, fc.Args["platformType"].(model.PlatformType), fc.Args["userId"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1344,6 +1528,67 @@ func (ec *executionContext) fieldContext_Query_getPlatformCredentials(ctx contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_getPlatformCredentials_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getYoutubeChannels(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getYoutubeChannels(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetYoutubeChannels(rctx, fc.Args["userId"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.YoutubeChannel)
+	fc.Result = res
+	return ec.marshalNYoutubeChannel2ᚕᚖgithubᚗcomᚋmikeᚑjacksᚋcodecampᚑ2024ᚑshortᚑvideoᚑdistributorᚑbackendᚋgraphᚋmodelᚐYoutubeChannelᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getYoutubeChannels(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_YoutubeChannel_id(ctx, field)
+			case "title":
+				return ec.fieldContext_YoutubeChannel_title(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type YoutubeChannel", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getYoutubeChannels_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -1689,6 +1934,182 @@ func (ec *executionContext) _Video_status(ctx context.Context, field graphql.Col
 func (ec *executionContext) fieldContext_Video_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Video",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Video_channelId(ctx context.Context, field graphql.CollectedField, obj *model.Video) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Video_channelId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ChannelID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Video_channelId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Video",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Video_channelTitle(ctx context.Context, field graphql.CollectedField, obj *model.Video) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Video_channelTitle(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ChannelTitle, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Video_channelTitle(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Video",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _YoutubeChannel_id(ctx context.Context, field graphql.CollectedField, obj *model.YoutubeChannel) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_YoutubeChannel_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_YoutubeChannel_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "YoutubeChannel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _YoutubeChannel_title(ctx context.Context, field graphql.CollectedField, obj *model.YoutubeChannel) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_YoutubeChannel_title(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Title, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_YoutubeChannel_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "YoutubeChannel",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -3698,6 +4119,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getYoutubeChannels":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getYoutubeChannels(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -3762,6 +4205,60 @@ func (ec *executionContext) _Video(ctx context.Context, sel ast.SelectionSet, ob
 			}
 		case "status":
 			out.Values[i] = ec._Video_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "channelId":
+			out.Values[i] = ec._Video_channelId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "channelTitle":
+			out.Values[i] = ec._Video_channelTitle(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var youtubeChannelImplementors = []string{"YoutubeChannel"}
+
+func (ec *executionContext) _YoutubeChannel(ctx context.Context, sel ast.SelectionSet, obj *model.YoutubeChannel) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, youtubeChannelImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("YoutubeChannel")
+		case "id":
+			out.Values[i] = ec._YoutubeChannel_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "title":
+			out.Values[i] = ec._YoutubeChannel_title(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -4210,6 +4707,60 @@ func (ec *executionContext) marshalNVideo2ᚖgithubᚗcomᚋmikeᚑjacksᚋcodec
 		return graphql.Null
 	}
 	return ec._Video(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNYoutubeChannel2ᚕᚖgithubᚗcomᚋmikeᚑjacksᚋcodecampᚑ2024ᚑshortᚑvideoᚑdistributorᚑbackendᚋgraphᚋmodelᚐYoutubeChannelᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.YoutubeChannel) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNYoutubeChannel2ᚖgithubᚗcomᚋmikeᚑjacksᚋcodecampᚑ2024ᚑshortᚑvideoᚑdistributorᚑbackendᚋgraphᚋmodelᚐYoutubeChannel(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNYoutubeChannel2ᚖgithubᚗcomᚋmikeᚑjacksᚋcodecampᚑ2024ᚑshortᚑvideoᚑdistributorᚑbackendᚋgraphᚋmodelᚐYoutubeChannel(ctx context.Context, sel ast.SelectionSet, v *model.YoutubeChannel) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._YoutubeChannel(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {
