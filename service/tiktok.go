@@ -219,6 +219,8 @@ func (s *TikTokService) ExchangeAndSaveToken(ctx context.Context, code string, u
 		return nil, err
 	}
 
+	fmt.Println("\n\nuserInfo: ", userInfo)
+
 	// Save credentials
 	creds := &models.PlatformCredentials{
 		UserID:         userID,
