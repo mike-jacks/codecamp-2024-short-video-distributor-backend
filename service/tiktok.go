@@ -341,13 +341,18 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 	fmt.Println("\n\ninitResponse: ", initResponse)
 
 	// Step 2: Upload video to the provided URL
-	uploadReq, err := http.NewRequest("POST", initResponse.Data.UploadURL, bytes.NewReader(fileBytes))
+	uploadReq, err := http.NewRequest("PUT", initResponse.Data.UploadURL, bytes.NewReader(fileBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create upload request: %w", err)
 	}
 
-	uploadReq.Header.Set("Content-Type", "video/mp4") // Adjust based on actual file type
-	uploadReq.Header.Set("Content-Length", fmt.Sprintf("%d", fileSize))
+	// Set required headers for upload
+	uploadReq.Header.Set("Content-Type", "video/mp4")
+	uploadReq.Header.Set("Content-Range", fmt.Sprintf("bytes 0-%d/%d", fileSize-1, fileSize))
+
+	// Debug logging
+	log.Printf("Upload URL: %s", initResponse.Data.UploadURL)
+	log.Printf("Upload headers: %v", uploadReq.Header)
 
 	uploadResp, err := client.Do(uploadReq)
 	if err != nil {
@@ -355,16 +360,63 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 	}
 	defer uploadResp.Body.Close()
 
+	// Read and log response
+	respBody, _ := io.ReadAll(uploadResp.Body)
+	log.Printf("Upload response status: %d", uploadResp.StatusCode)
+	log.Printf("Upload response body: %s", string(respBody))
+
 	if uploadResp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(uploadResp.Body)
-		return nil, fmt.Errorf("upload failed with status %d: %s", uploadResp.StatusCode, string(body))
+		return nil, fmt.Errorf("upload failed with status %d: %s", uploadResp.StatusCode, string(respBody))
+	}
+
+	// Step 3: Check upload status
+	statusURL := "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
+	statusPayload := struct {
+		PublishID string `json:"publish_id"`
+	}{
+		PublishID: initResponse.Data.VideoID,
+	}
+
+	statusBytes, err := json.Marshal(statusPayload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal status payload: %w", err)
+	}
+
+	statusReq, err := http.NewRequest("POST", statusURL, bytes.NewBuffer(statusBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create status request: %w", err)
+	}
+
+	statusReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	statusReq.Header.Set("Content-Type", "application/json; charset=UTF-8")
+
+	statusResp, err := client.Do(statusReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check upload status: %w", err)
+	}
+	defer statusResp.Body.Close()
+
+	var statusResponse struct {
+		Data struct {
+			Status   string `json:"status"`
+			VideoID  string `json:"video_id"`
+			ShareURL string `json:"share_url"`
+		} `json:"data"`
+		Error struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+
+	if err := json.NewDecoder(statusResp.Body).Decode(&statusResponse); err != nil {
+		return nil, fmt.Errorf("failed to decode status response: %w", err)
 	}
 
 	return &model.VideoDistribution{
-		ID:           initResponse.Data.VideoID,
+		ID:           statusResponse.Data.VideoID,
 		Title:        title,
 		Description:  description,
-		URL:          "", // URL will be available after publishing
+		URL:          statusResponse.Data.ShareURL,
 		Status:       string(models.Processing),
 		AccountID:    accountID,
 		AccountTitle: "",
