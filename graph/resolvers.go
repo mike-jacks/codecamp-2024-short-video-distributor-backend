@@ -63,7 +63,7 @@ func (r *mutationResolver) RevokeAuth(ctx context.Context, platformType model.Pl
 }
 
 // UploadVideos is the resolver for the uploadVideos field.
-func (r *mutationResolver) UploadVideos(ctx context.Context, title string, description string, file graphql.Upload, uploadVideoInput []*model.UploadVideoInput) ([]*model.VideoDistribution, error) {
+func (r *mutationResolver) UploadVideo(ctx context.Context, title string, description string, file graphql.Upload, uploadVideoInput []*model.UploadVideoInput) ([]*model.VideoDistribution, error) {
 	result := make([]*model.VideoDistribution, len(uploadVideoInput))
 	var err error
 	for i, input := range uploadVideoInput {

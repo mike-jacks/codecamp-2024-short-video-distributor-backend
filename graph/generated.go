@@ -53,7 +53,7 @@ type ComplexityRoot struct {
 		Empty           func(childComplexity int) int
 		GenerateAuthURL func(childComplexity int, platformType model.PlatformType, userID string) int
 		RevokeAuth      func(childComplexity int, platformType model.PlatformType, userID string) int
-		UploadVideos    func(childComplexity int, title string, description string, file graphql.Upload, uploadVideoInput []*model.UploadVideoInput) int
+		UploadVideo     func(childComplexity int, title string, description string, file graphql.Upload, uploadVideoInput []*model.UploadVideoInput) int
 	}
 
 	PlatformCredentials struct {
@@ -95,7 +95,7 @@ type MutationResolver interface {
 	GenerateAuthURL(ctx context.Context, platformType model.PlatformType, userID string) (string, error)
 	Authorize(ctx context.Context, platformType model.PlatformType, code string, userID string) (bool, error)
 	RevokeAuth(ctx context.Context, platformType model.PlatformType, userID string) (bool, error)
-	UploadVideos(ctx context.Context, title string, description string, file graphql.Upload, uploadVideoInput []*model.UploadVideoInput) ([]*model.VideoDistribution, error)
+	UploadVideo(ctx context.Context, title string, description string, file graphql.Upload, uploadVideoInput []*model.UploadVideoInput) ([]*model.VideoDistribution, error)
 }
 type QueryResolver interface {
 	Empty(ctx context.Context) (*string, error)
@@ -165,17 +165,17 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.RevokeAuth(childComplexity, args["platformType"].(model.PlatformType), args["userId"].(string)), true
 
-	case "Mutation.uploadVideos":
-		if e.complexity.Mutation.UploadVideos == nil {
+	case "Mutation.uploadVideo":
+		if e.complexity.Mutation.UploadVideo == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_uploadVideos_args(context.TODO(), rawArgs)
+		args, err := ec.field_Mutation_uploadVideo_args(context.TODO(), rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UploadVideos(childComplexity, args["title"].(string), args["description"].(string), args["file"].(graphql.Upload), args["uploadVideoInput"].([]*model.UploadVideoInput)), true
+		return e.complexity.Mutation.UploadVideo(childComplexity, args["title"].(string), args["description"].(string), args["file"].(graphql.Upload), args["uploadVideoInput"].([]*model.UploadVideoInput)), true
 
 	case "PlatformCredentials.accessToken":
 		if e.complexity.PlatformCredentials.AccessToken == nil {
@@ -601,32 +601,32 @@ func (ec *executionContext) field_Mutation_revokeAuth_argsUserID(
 	return zeroVal, nil
 }
 
-func (ec *executionContext) field_Mutation_uploadVideos_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Mutation_uploadVideo_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	arg0, err := ec.field_Mutation_uploadVideos_argsTitle(ctx, rawArgs)
+	arg0, err := ec.field_Mutation_uploadVideo_argsTitle(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
 	args["title"] = arg0
-	arg1, err := ec.field_Mutation_uploadVideos_argsDescription(ctx, rawArgs)
+	arg1, err := ec.field_Mutation_uploadVideo_argsDescription(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
 	args["description"] = arg1
-	arg2, err := ec.field_Mutation_uploadVideos_argsFile(ctx, rawArgs)
+	arg2, err := ec.field_Mutation_uploadVideo_argsFile(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
 	args["file"] = arg2
-	arg3, err := ec.field_Mutation_uploadVideos_argsUploadVideoInput(ctx, rawArgs)
+	arg3, err := ec.field_Mutation_uploadVideo_argsUploadVideoInput(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
 	args["uploadVideoInput"] = arg3
 	return args, nil
 }
-func (ec *executionContext) field_Mutation_uploadVideos_argsTitle(
+func (ec *executionContext) field_Mutation_uploadVideo_argsTitle(
 	ctx context.Context,
 	rawArgs map[string]interface{},
 ) (string, error) {
@@ -639,7 +639,7 @@ func (ec *executionContext) field_Mutation_uploadVideos_argsTitle(
 	return zeroVal, nil
 }
 
-func (ec *executionContext) field_Mutation_uploadVideos_argsDescription(
+func (ec *executionContext) field_Mutation_uploadVideo_argsDescription(
 	ctx context.Context,
 	rawArgs map[string]interface{},
 ) (string, error) {
@@ -652,7 +652,7 @@ func (ec *executionContext) field_Mutation_uploadVideos_argsDescription(
 	return zeroVal, nil
 }
 
-func (ec *executionContext) field_Mutation_uploadVideos_argsFile(
+func (ec *executionContext) field_Mutation_uploadVideo_argsFile(
 	ctx context.Context,
 	rawArgs map[string]interface{},
 ) (graphql.Upload, error) {
@@ -665,7 +665,7 @@ func (ec *executionContext) field_Mutation_uploadVideos_argsFile(
 	return zeroVal, nil
 }
 
-func (ec *executionContext) field_Mutation_uploadVideos_argsUploadVideoInput(
+func (ec *executionContext) field_Mutation_uploadVideo_argsUploadVideoInput(
 	ctx context.Context,
 	rawArgs map[string]interface{},
 ) ([]*model.UploadVideoInput, error) {
@@ -1025,8 +1025,8 @@ func (ec *executionContext) fieldContext_Mutation_revokeAuth(ctx context.Context
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_uploadVideos(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Mutation_uploadVideos(ctx, field)
+func (ec *executionContext) _Mutation_uploadVideo(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_uploadVideo(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -1039,7 +1039,7 @@ func (ec *executionContext) _Mutation_uploadVideos(ctx context.Context, field gr
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().UploadVideos(rctx, fc.Args["title"].(string), fc.Args["description"].(string), fc.Args["file"].(graphql.Upload), fc.Args["uploadVideoInput"].([]*model.UploadVideoInput))
+		return ec.resolvers.Mutation().UploadVideo(rctx, fc.Args["title"].(string), fc.Args["description"].(string), fc.Args["file"].(graphql.Upload), fc.Args["uploadVideoInput"].([]*model.UploadVideoInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1056,7 +1056,7 @@ func (ec *executionContext) _Mutation_uploadVideos(ctx context.Context, field gr
 	return ec.marshalNVideoDistribution2ᚕᚖgithubᚗcomᚋmikeᚑjacksᚋcodecampᚑ2024ᚑshortᚑvideoᚑdistributorᚑbackendᚋgraphᚋmodelᚐVideoDistributionᚄ(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Mutation_uploadVideos(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_uploadVideo(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -1089,7 +1089,7 @@ func (ec *executionContext) fieldContext_Mutation_uploadVideos(ctx context.Conte
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_uploadVideos_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_uploadVideo_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -4082,9 +4082,9 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "uploadVideos":
+		case "uploadVideo":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_uploadVideos(ctx, field)
+				return ec._Mutation_uploadVideo(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

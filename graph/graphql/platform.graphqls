@@ -46,7 +46,7 @@ extend type Mutation {
   generateAuthURL(platformType: PlatformType!, userId: String!): String!
   authorize(platformType: PlatformType!, code: String!, userId: String!): Boolean!
   revokeAuth(platformType: PlatformType!, userId: String!): Boolean!
-  uploadVideos(title: String!, description: String!, file: Upload!, uploadVideoInput: [UploadVideoInput!]!): [VideoDistribution!]!
+  uploadVideo(title: String!, description: String!, file: Upload!, uploadVideoInput: [UploadVideoInput!]!): [VideoDistribution!]!
 }
 
 input UploadVideoInput {
