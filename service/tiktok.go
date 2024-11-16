@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -36,6 +38,7 @@ type TikTokService struct {
 	authURI      string
 	authSessions map[string]*AuthSession
 	sessionMux   sync.RWMutex
+	codeVerifier string
 }
 
 func NewTikTokService(db *gorm.DB) *TikTokService {
@@ -106,6 +109,15 @@ func (s *TikTokService) getUserInfo(accessToken string, openID string) (*TikTokU
 }
 
 func (s *TikTokService) GetAuthURL(userID string) (string, error) {
+	// Generate PKCE values
+	verifier, challenge, err := generatePKCE()
+	if err != nil {
+		return "", fmt.Errorf("failed to generate PKCE values: %w", err)
+	}
+
+	// Store the verifier in the session
+	s.codeVerifier = verifier
+
 	// Generate a random session token
 	sessionToken := make([]byte, 32)
 	if _, err := rand.Read(sessionToken); err != nil {
@@ -123,14 +135,16 @@ func (s *TikTokService) GetAuthURL(userID string) (string, error) {
 	}
 	s.sessionMux.Unlock()
 
-	// Build TikTok auth URL
-	authURL := fmt.Sprintf(
-		"%s?client_key=%s&response_type=code&redirect_uri=%s&scope=user.info.basic,video.publish,video.upload&state=%s",
-		s.authURI,
-		s.clientID,
-		s.redirectURI,
-		token,
-	)
+	params := url.Values{}
+	params.Set("client_key", s.clientID)
+	params.Set("response_type", "code")
+	params.Set("redirect_uri", s.redirectURI)
+	params.Set("scope", "user.info.basic,video.publish,video.upload")
+	params.Set("state", token)
+	params.Set("code_challenge", challenge)
+	params.Set("code_challenge_method", "S256")
+
+	authURL := s.authURI + "?" + params.Encode()
 
 	return authURL, nil
 }
@@ -305,4 +319,21 @@ func (s *TikTokService) cleanupOldSessions() {
 			delete(s.authSessions, token)
 		}
 	}
+}
+
+func generatePKCE() (verifier, challenge string, err error) {
+	// Generate random bytes for verifier
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", "", err
+	}
+
+	// Create code verifier
+	verifier = hex.EncodeToString(bytes)
+
+	// Create code challenge
+	hash := sha256.Sum256([]byte(verifier))
+	challenge = base64.URLEncoding.EncodeToString(hash[:])
+
+	return verifier, challenge, nil
 }
