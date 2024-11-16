@@ -105,6 +105,8 @@ func (s *TikTokService) getUserInfo(accessToken string, openID string) (*TikTokU
 		} `json:"error"`
 	}
 
+	fmt.Println("\n\nresponse: ", response)
+
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, fmt.Errorf("failed to decode user info response: %w", err)
 	}
