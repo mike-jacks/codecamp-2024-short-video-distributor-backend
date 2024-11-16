@@ -77,7 +77,7 @@ func (s *TikTokService) getUserInfo(accessToken string, openID string) (*TikTokU
 	// Add query parameters including openID
 	q := req.URL.Query()
 	q.Add("open_id", openID) // Add openID as query parameter
-	q.Add("fields", "open_id,display_name,avatar_url")
+	q.Add("fields", "display_name,avatar_url")
 	req.URL.RawQuery = q.Encode()
 
 	// Add debug logging
@@ -101,6 +101,7 @@ func (s *TikTokService) getUserInfo(accessToken string, openID string) (*TikTokU
 		Error struct {
 			Code    string `json:"code"`
 			Message string `json:"message"`
+			LogID   string `json:"log_id"`
 		} `json:"error"`
 	}
 
