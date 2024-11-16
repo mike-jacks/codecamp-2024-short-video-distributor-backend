@@ -125,10 +125,40 @@ func handleOAuthCallback(mux *http.ServeMux, resolver *graph.Resolver) {
 		http.Redirect(w, r, frontendURL, http.StatusTemporaryRedirect)
 
 	})
-	mux.HandleFunc("/auth/instagram/callback", func(w http.ResponseWriter, r *http.Request) {
-		// TODO: Implement Instagram OAuth callback
-	})
 	mux.HandleFunc("/auth/tiktok/callback", func(w http.ResponseWriter, r *http.Request) {
+		// Get the state parameter (session token)
+		state := r.URL.Query().Get("state")
+		if state == "" {
+			http.Error(w, "Session token not found", http.StatusBadRequest)
+			return
+		}
+
+		// Validate session and get user ID
+		userID, err := resolver.TikTokService.ValidateAndGetUserID(state)
+		if err != nil {
+			log.Printf("Validating session failed: %v", err)
+			http.Error(w, "Invalid or expired session", http.StatusBadRequest)
+			return
+		}
+
+		// Get the authorization code
+		code := r.URL.Query().Get("code")
+		if code == "" {
+			http.Error(w, "Authorization code not found", http.StatusBadRequest)
+			return
+		}
+
+		// Handle the authorization
+		_, err = resolver.TikTokService.ExchangeAndSaveToken(r.Context(), code, userID)
+		if err != nil {
+			log.Printf("Handling callback failed: %v", err)
+			http.Error(w, "Failed to handle callback", http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, os.Getenv("FRONTEND_URL"), http.StatusTemporaryRedirect)
+	})
+	mux.HandleFunc("/auth/instagram/callback", func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Implement TikTok OAuth callback
 	})
 }

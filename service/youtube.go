@@ -21,13 +21,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type AuthSession struct {
-	Token     string
-	UserID    string
-	CreatedAt time.Time
-	Used      bool
-}
-
 type YouTubeService struct {
 	db           *gorm.DB
 	config       *oauth2.Config

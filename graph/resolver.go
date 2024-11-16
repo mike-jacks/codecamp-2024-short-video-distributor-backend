@@ -12,6 +12,7 @@ import (
 type Resolver struct {
 	db             *gorm.DB
 	YoutubeService *service.YouTubeService
+	TikTokService  *service.TikTokService
 }
 
 func NewResolver(db *gorm.DB) *Resolver {
@@ -24,8 +25,14 @@ func NewResolver(db *gorm.DB) *Resolver {
 		panic("failed to create youtube service")
 	}
 
+	tiktokService := service.NewTikTokService(db)
+	if tiktokService == nil {
+		panic("failed to create tiktok service")
+	}
+
 	return &Resolver{
 		db:             db,
 		YoutubeService: youtubeService,
+		TikTokService:  tiktokService,
 	}
 }

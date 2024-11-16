@@ -135,7 +135,7 @@ func (r *queryResolver) GetAuthURL(ctx context.Context, platformType model.Platf
 	case model.PlatformTypeYoutube:
 		return r.YoutubeService.GetAuthURL(userID)
 	case model.PlatformTypeTiktok:
-		return "", fmt.Errorf("TikTok not implemented yet")
+		return r.TikTokService.GetAuthURL(userID)
 	case model.PlatformTypeInstagram:
 		return "", fmt.Errorf("instagram not implemented yet")
 	default:
