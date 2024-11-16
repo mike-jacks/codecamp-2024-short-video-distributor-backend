@@ -156,7 +156,7 @@ func (s *TikTokService) GetAuthURL(userID string) (string, error) {
 
 func (s *TikTokService) ExchangeAndSaveToken(ctx context.Context, code string, userID string) (*model.PlatformCredentials, error) {
 	// Exchange code for access token
-	tokenURL := "https://open-api.tiktok.com/oauth/access_token/"
+	tokenURL := "https://open.tiktokapis.com/v2/oauth/token/"
 	resp, err := http.PostForm(tokenURL, url.Values{
 		"client_key":    {s.clientID},
 		"client_secret": {s.clientSecret},
