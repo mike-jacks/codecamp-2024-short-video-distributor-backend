@@ -212,16 +212,6 @@ func (s *TikTokService) ExchangeAndSaveToken(ctx context.Context, code string, u
 		return nil, fmt.Errorf("failed to decode token response: %w", err)
 	}
 
-	// Add this check for token response errors
-	if tokenResponse.Error.Code != "" {
-		return nil, fmt.Errorf("TikTok API error: %s - %s", tokenResponse.Error.Code, tokenResponse.Error.Message)
-	}
-
-	// Check if we got a valid access token
-	if tokenResponse.AccessToken == "" {
-		return nil, fmt.Errorf("no access token received in response")
-	}
-
 	// Get user info
 	userInfo, err := s.getUserInfo(tokenResponse.AccessToken, tokenResponse.OpenID)
 	if err != nil {

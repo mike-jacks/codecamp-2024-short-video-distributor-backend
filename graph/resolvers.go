@@ -41,7 +41,8 @@ func (r *mutationResolver) Authorize(ctx context.Context, platformType model.Pla
 		_, err := r.YoutubeService.ExchangeAndSaveToken(ctx, code, userID)
 		return err == nil, nil
 	case model.PlatformTypeTiktok:
-		return false, fmt.Errorf("TikTok not implemented yet")
+		_, err := r.TikTokService.ExchangeAndSaveToken(ctx, code, userID)
+		return err == nil, nil
 	case model.PlatformTypeInstagram:
 		return false, fmt.Errorf("instagram not implemented yet")
 	default:

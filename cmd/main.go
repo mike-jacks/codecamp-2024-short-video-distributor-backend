@@ -126,6 +126,12 @@ func handleOAuthCallback(mux *http.ServeMux, resolver *graph.Resolver) {
 
 	})
 	mux.HandleFunc("/auth/tiktok/callback", func(w http.ResponseWriter, r *http.Request) {
+		// Only allow GET requests
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
 		// Get the state parameter (session token)
 		state := r.URL.Query().Get("state")
 		if state == "" {
@@ -156,7 +162,13 @@ func handleOAuthCallback(mux *http.ServeMux, resolver *graph.Resolver) {
 			return
 		}
 
-		http.Redirect(w, r, os.Getenv("FRONTEND_URL"), http.StatusTemporaryRedirect)
+		// Verify frontend URL exists
+		frontendURL := os.Getenv("FRONTEND_URL")
+		if frontendURL == "" {
+			log.Fatal("FRONTEND_URL is not set")
+		}
+
+		http.Redirect(w, r, frontendURL, http.StatusTemporaryRedirect)
 	})
 	mux.HandleFunc("/auth/instagram/callback", func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Implement TikTok OAuth callback
