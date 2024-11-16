@@ -196,13 +196,13 @@ func (s *TikTokService) ExchangeAndSaveToken(ctx context.Context, code string, u
 	resp.Body = io.NopCloser(bytes.NewBuffer(respBody))
 
 	var tokenResponse struct {
-		Data struct {
-			AccessToken  string `json:"access_token"`
-			OpenID       string `json:"open_id"`
-			ExpiresIn    int    `json:"expires_in"`
-			RefreshToken string `json:"refresh_token"`
-		} `json:"data"`
-		Error struct {
+		AccessToken  string `json:"access_token"`
+		OpenID       string `json:"open_id"`
+		ExpiresIn    int    `json:"expires_in"`
+		RefreshToken string `json:"refresh_token"`
+		TokenType    string `json:"token_type"`
+		Scope        string `json:"scope"`
+		Error        struct {
 			Code    string `json:"code"`
 			Message string `json:"message"`
 		} `json:"error"`
@@ -212,8 +212,18 @@ func (s *TikTokService) ExchangeAndSaveToken(ctx context.Context, code string, u
 		return nil, fmt.Errorf("failed to decode token response: %w", err)
 	}
 
+	// Add this check for token response errors
+	if tokenResponse.Error.Code != "" {
+		return nil, fmt.Errorf("TikTok API error: %s - %s", tokenResponse.Error.Code, tokenResponse.Error.Message)
+	}
+
+	// Check if we got a valid access token
+	if tokenResponse.AccessToken == "" {
+		return nil, fmt.Errorf("no access token received in response")
+	}
+
 	// Get user info
-	userInfo, err := s.getUserInfo(tokenResponse.Data.AccessToken, tokenResponse.Data.OpenID)
+	userInfo, err := s.getUserInfo(tokenResponse.AccessToken, tokenResponse.OpenID)
 	if err != nil {
 		return nil, err
 	}
@@ -222,11 +232,11 @@ func (s *TikTokService) ExchangeAndSaveToken(ctx context.Context, code string, u
 	creds := &models.PlatformCredentials{
 		UserID:         userID,
 		PlatformType:   models.TikTok,
-		AccessToken:    tokenResponse.Data.AccessToken,
-		RefreshToken:   tokenResponse.Data.RefreshToken,
-		TokenExpiresAt: time.Now().Add(time.Duration(tokenResponse.Data.ExpiresIn) * time.Second),
+		AccessToken:    tokenResponse.AccessToken,
+		RefreshToken:   tokenResponse.RefreshToken,
+		TokenExpiresAt: time.Now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second),
 		IsActive:       true,
-		AccountID:      tokenResponse.Data.OpenID,
+		AccountID:      tokenResponse.OpenID,
 		AccountTitle:   userInfo.Nickname, // Using the display name from user info
 	}
 
@@ -249,7 +259,7 @@ func (s *TikTokService) ExchangeAndSaveToken(ctx context.Context, code string, u
 
 func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountID string, title string, description string, file graphql.Upload, privacyStatus *string, accessToken string, refreshToken string, tokenExpiresAt time.Time) (*model.VideoDistribution, error) {
 	// First, upload the video file
-	uploadURL := "https://open-api.tiktok.com/share/video/upload/"
+	uploadURL := "https://open.tiktokapis.com/v2/video/upload/"
 
 	// Create multipart form
 	body := &bytes.Buffer{}
