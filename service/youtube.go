@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -134,17 +135,17 @@ func (s *YouTubeService) ExchangeAndSaveToken(ctx context.Context, code string, 
 		return nil, err
 	}
 
-	// Verify the token by making a test API call
+	// Create YouTube client
 	client := s.config.Client(ctx, token)
 	youtubeService, err := youtube.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create YouTube service: %w", err)
 	}
 
-	// Verify the token by making a test API call
+	// Get channel information
 	channelResponse, err := youtubeService.Channels.List([]string{"snippet"}).Mine(true).Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to verify token: %w", err)
+		return nil, fmt.Errorf("failed to get channel info: %w", err)
 	}
 
 	if len(channelResponse.Items) == 0 {
@@ -153,7 +154,29 @@ func (s *YouTubeService) ExchangeAndSaveToken(ctx context.Context, code string, 
 
 	channel := channelResponse.Items[0]
 
-	// Save new credentials
+	// Check if channel already exists
+	var existingChannel models.YouTubeChannelDetails
+	err = s.db.Where("channel_id = ?", channel.Id).First(&existingChannel).Error
+	if err == nil {
+		// Channel already exists, return error
+		return nil, fmt.Errorf("channel %s is already connected to an account", channel.Snippet.Title)
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		// Unexpected error
+		return nil, fmt.Errorf("error checking for existing channel: %w", err)
+	}
+
+	// Start transaction for new credentials
+	tx := s.db.Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", tx.Error)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Create new credentials
 	creds := &models.PlatformCredentials{
 		UserID:         userID,
 		PlatformType:   models.YouTube,
@@ -163,15 +186,9 @@ func (s *YouTubeService) ExchangeAndSaveToken(ctx context.Context, code string, 
 		IsActive:       true,
 	}
 
-	// Start transaction
-	tx := s.db.Begin()
-	if tx.Error != nil {
-		return nil, fmt.Errorf("failed to start transaction: %w", tx.Error)
-	}
-
 	if err := tx.Create(creds).Error; err != nil {
 		tx.Rollback()
-		return nil, fmt.Errorf("failed to save new credentials: %w", err)
+		return nil, fmt.Errorf("failed to save credentials: %w", err)
 	}
 
 	// Save channel details

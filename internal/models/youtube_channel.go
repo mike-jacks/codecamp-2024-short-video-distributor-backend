@@ -3,7 +3,7 @@ package models
 type YouTubeChannelDetails struct {
 	BaseModel
 	CredentialsID string `gorm:"not null;type:varchar(32)"`
-	ChannelID     string `gorm:"not null"`
+	ChannelID     string `gorm:"not null;uniqueIndex"`
 	ChannelTitle  string `gorm:"not null"`
 
 	// Foreign key to PlatformCredentials
