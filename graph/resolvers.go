@@ -118,6 +118,34 @@ func (r *mutationResolver) UploadVideo(ctx context.Context, title string, descri
 			if err := tx.Commit().Error; err != nil {
 				return nil, fmt.Errorf("failed to commit transaction: %w", err)
 			}
+		case model.PlatformTypeTiktok:
+			result[i], err = r.TikTokService.UploadVideo(ctx, input.UserID, input.AccountID, title, description, uploadFile, input.PrivacyStatus, input.AccessToken, input.RefreshToken, input.TokenExpiresAt)
+			if err != nil {
+				return nil, err
+			}
+
+			tx := r.db.Begin()
+			defer func() {
+				if r := recover(); r != nil {
+					tx.Rollback()
+				}
+			}()
+
+			if err := tx.Create(&models.VideoDistribution{
+				Title:        result[i].Title,
+				Description:  result[i].Description,
+				URL:          result[i].URL,
+				Status:       models.DistributionStatus(result[i].Status),
+				AccountID:    result[i].AccountID,
+				AccountTitle: result[i].AccountTitle,
+			}).Error; err != nil {
+				tx.Rollback()
+				return nil, fmt.Errorf("failed to save video distribution: %w", err)
+			}
+
+			if err := tx.Commit().Error; err != nil {
+				return nil, fmt.Errorf("failed to commit transaction: %w", err)
+			}
 		default:
 			return nil, fmt.Errorf("unsupported platform type: %s", input.PlatformType)
 		}
