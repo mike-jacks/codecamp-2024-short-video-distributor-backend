@@ -258,7 +258,7 @@ func (s *TikTokService) ExchangeAndSaveToken(ctx context.Context, code string, u
 
 func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountID string, title string, description string, file graphql.Upload, privacyStatus *string, accessToken string, refreshToken string, tokenExpiresAt time.Time) (*model.VideoDistribution, error) {
 	// Step 1: Initialize upload
-	initURL := "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/"
+	initURL := "https://open.tiktokapis.com/v2/post/publish/video/init/"
 
 	// Get file size for the initialization request
 	fileBytes, err := io.ReadAll(file.File)
@@ -272,6 +272,14 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 
 	// Create initialization payload
 	initPayload := struct {
+		PostInfo struct {
+			Title                 string `json:"title"`
+			PrivacyLevel         string `json:"privacy_level"`
+			DisableDuet          bool   `json:"disable_duet"`
+			DisableComment       bool   `json:"disable_comment"`
+			DisableStitch        bool   `json:"disable_stitch"`
+			VideoCoverTimestamp  int64  `json:"video_cover_timestamp_ms"`
+		} `json:"post_info"`
 		SourceInfo struct {
 			Source          string `json:"source"`
 			VideoSize       int    `json:"video_size"`
@@ -279,6 +287,21 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 			TotalChunkCount int    `json:"total_chunk_count"`
 		} `json:"source_info"`
 	}{
+		PostInfo: struct {
+			Title                 string `json:"title"`
+			PrivacyLevel         string `json:"privacy_level"`
+			DisableDuet          bool   `json:"disable_duet"`
+			DisableComment       bool   `json:"disable_comment"`
+			DisableStitch        bool   `json:"disable_stitch"`
+			VideoCoverTimestamp  int64  `json:"video_cover_timestamp_ms"`
+		}{
+			Title:                title,
+			PrivacyLevel:         "PUBLIC", // or use privacyStatus if provided
+			DisableDuet:          false,
+			DisableComment:       false,
+			DisableStitch:        false,
+			VideoCoverTimestamp:  1000,
+		},
 		SourceInfo: struct {
 			Source          string `json:"source"`
 			VideoSize       int    `json:"video_size"`
@@ -287,15 +310,22 @@ func (s *TikTokService) UploadVideo(ctx context.Context, userID string, accountI
 		}{
 			Source:          "FILE_UPLOAD",
 			VideoSize:       fileSize,
-			ChunkSize:       fileSize,
+			ChunkSize:       fileSize, // Since we're uploading in one chunk
 			TotalChunkCount: 1,
 		},
 	}
 
+	// Add privacy level handling if provided
+	if privacyStatus != nil {
+		initPayload.PostInfo.PrivacyLevel = *privacyStatus
+	}
+
+	// Debug logging for init payload
 	payloadBytes, err := json.Marshal(initPayload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal init payload: %w", err)
 	}
+	log.Printf("Init payload: %s", string(payloadBytes))
 
 	// Create initialization request
 	initReq, err := http.NewRequest("POST", initURL, bytes.NewBuffer(payloadBytes))
