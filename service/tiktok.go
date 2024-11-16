@@ -104,14 +104,7 @@ func (s *TikTokService) getUserInfo(accessToken string, openID string) (*TikTokU
 	log.Printf("User info response: %s", string(respBody))
 	resp.Body = io.NopCloser(bytes.NewBuffer(respBody))
 
-	var response struct {
-		Data  TikTokUserInfo `json:"data"`
-		Error struct {
-			Code    string `json:"code"`
-			Message string `json:"message"`
-			LogID   string `json:"log_id"`
-		} `json:"error"`
-	}
+	var response TikTokUserInfo
 
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, fmt.Errorf("failed to decode user info response: %w", err)
@@ -123,7 +116,7 @@ func (s *TikTokService) getUserInfo(accessToken string, openID string) (*TikTokU
 		return nil, fmt.Errorf("TikTok API error: %s - %s", response.Error.Code, response.Error.Message)
 	}
 
-	return &response.Data, nil
+	return &response, nil
 }
 
 func (s *TikTokService) GetAuthURL(userID string) (string, error) {
